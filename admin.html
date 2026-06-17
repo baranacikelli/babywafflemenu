@@ -356,6 +356,7 @@
             categoriesList.forEach(cat => { select.innerHTML += `<option value="${cat}">${cat}</option>`; });
         }
 
+        // Hata Düzeltme: modal açma-kapama fonksiyonları
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
@@ -401,7 +402,6 @@
             showToast("Kategori listeye eklendi.");
         }
 
-        // HATA GÖSTERİMİ AKTİF EDİLMİŞ GÜVENLİ KAYIT MOTORU
         async function saveProduct() {
             const pId = document.getElementById('p-id').value;
             const name = document.getElementById('p-name').value.trim();
@@ -419,7 +419,6 @@
             try {
                 let finalPublicUrl = null;
 
-                // 1. GÖRSEL YÜKLEME ADIMI
                 if(fileInput.files.length > 0) {
                     const file = fileInput.files[0];
                     const fileExt = file.name.split('.').pop().toLowerCase();
@@ -430,7 +429,6 @@
                         .upload(fileName, file, { cacheControl: '3600', upsert: true });
 
                     if (uploadError) {
-                        // Hatayı gizlemek yerine ekranda ne olduğunu net olarak gösteriyoruz
                         throw new Error("Görsel Yükleme Hatası: " + uploadError.message);
                     }
 
@@ -439,7 +437,6 @@
 
                 const ingredients = ingredientsInput ? ingredientsInput.split(',').map(i => i.trim()).filter(i => i !== "") : [];
 
-                // 2. VERİTABANI YAZMA ADIMI
                 if(pId) {
                     const updatePayload = { name, category, price, ingredients };
                     if(finalPublicUrl) updatePayload.img = finalPublicUrl;
@@ -459,9 +456,8 @@
                 closeModal('product-modal');
                 fetchAdminMenu();
             } catch (err) { 
-                // Gerçek hata mesajını kullanıcıya kırmızı bildirimle basar
                 showToast(err.message, "error");
-            } finaly { 
+            } finally { 
                 btn.disabled = false; 
                 btn.innerText = "Ürünü Kaydet"; 
             }
