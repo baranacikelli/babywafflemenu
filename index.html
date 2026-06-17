@@ -124,9 +124,12 @@
 
         async function fetchMenuFromSupabase() {
             try {
+                // Ürünleri çekerken sort_order sütununa (küçükten büyüğe) veya id'ye göre sıralıyoruz
                 const { data: itemsData, error: itemsError } = await supabaseClient
                     .from('menu_items')
-                    .select('*');
+                    .select('*')
+                    .order('sort_order', { ascending: true, nullsFirst: false })
+                    .order('id', { ascending: true });
 
                 if (itemsError) throw itemsError;
                 if (!itemsData || itemsData.length === 0) {
@@ -134,7 +137,7 @@
                     return;
                 }
 
-                // DÜZELTME: Doğru panel sıralaması için sıralama yönünü descending yapıyoruz
+                // Kategorileri panel sırasına (büyükten küçüğe) göre çekiyoruz
                 const { data: orderData } = await supabaseClient
                     .from('category_order')
                     .select('*')
