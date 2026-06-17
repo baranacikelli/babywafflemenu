@@ -204,7 +204,6 @@
             } catch (err) { alert("Veriler yüklenirken hata oldu."); }
         }
 
-        // ARAYÜZDE TABLOYU ÇİZER (Sayfa yenilemeden sıralama değişimi için ayrıştırıldı)
         function renderProductsTableUI() {
             const tbody = document.getElementById('admin-menu-list');
             tbody.innerHTML = '';
@@ -248,7 +247,6 @@
                 await supabaseClient.from('menu_items').update({ sort_order: targetIndex + 1 }).eq('id', currentObj.id);
                 await supabaseClient.from('menu_items').update({ sort_order: currentIndex + 1 }).eq('id', targetObj.id);
                 
-                // Arka planda veriyi yenile ve sadece tabloyu tekrar çiz (Sayfa Yenilenmez)
                 const tempIndex = allProductsRaw.findIndex(p => p.id === currentObj.id);
                 const tempTargetIndex = allProductsRaw.findIndex(p => p.id === targetObj.id);
                 allProductsRaw[tempIndex].sort_order = targetIndex + 1;
@@ -274,7 +272,6 @@
             });
         }
 
-        // DEĞİŞİKLİK: Sadece arayüzde yer değiştirir, hemen veritabanına yazmaz (Hızlı ve Akıcı)
         function moveCategoryUI(index, direction) {
             const targetIndex = index + direction;
             if (targetIndex < 0 || targetIndex >= categoriesList.length) return;
@@ -283,10 +280,9 @@
             categoriesList[targetIndex] = temp;
             
             renderCategoryOrderUI();
-            renderProductsTableUI(); // Alttaki tabloyu da anlık sıralamaya göre yenile
+            renderProductsTableUI();
         }
 
-        // YENİ BUTON: Kategorilerin son sırasını toplu olarak Supabase'e kaydeder
         async function saveCategoryOrderToSupabase() {
             const btn = document.getElementById('save-order-btn');
             btn.disabled = true;
@@ -325,6 +321,7 @@
             closeModal('category-modal');
         }
 
+        // DÜZELTİLEN YER: Görsel linkini eksiksiz çeken ve Türkçe karakter hatasını önleyen fonksiyon
         async function saveProduct() {
             const name = document.getElementById('p-name').value.trim();
             const category = document.getElementById('p-category').value;
@@ -339,25 +336,38 @@
 
             try {
                 const file = fileInput.files[0];
-                const fileExt = file.name.split('.').pop();
+                const fileExt = file.name.split('.').pop().toLowerCase();
+                // Türkçe karakterleri ve boşlukları temizleyip güvenli dosya adı üretiyoruz
                 const fileName = `${Date.now()}.${fileExt}`;
                 
-                await supabaseClient.storage.from('menu-images').upload(fileName, file);
+                // Resmi Storage'a yükleme
+                const { error: uploadError } = await supabaseClient.storage.from('menu-images').upload(fileName, file);
+                if (uploadError) throw uploadError;
+
+                // DÜZELTME: Linki çekme yapısı v2 sürümüne uygun hale getirildi (data.publicUrl)
                 const { data: urlData } = supabaseClient.storage.from('menu-images').getPublicUrl(fileName);
+                if (!urlData || !urlData.publicUrl) throw new Error("Görsel bağlantısı oluşturulamadı.");
+                
+                const finalPublicUrl = urlData.publicUrl;
                 const ingredients = ingredientsInput ? ingredientsInput.split(',').map(i => i.trim()) : [];
 
                 const catItems = allProductsRaw.filter(item => item.category === category);
                 const nextOrder = catItems.length + 1;
 
-                await supabaseClient.from('menu_items').insert([{ name, category, price, img: urlData.publicUrl, ingredients, sort_order: nextOrder }]);
+                // Veritabanına kesinleşen publicUrl'i yazıyoruz
+                await supabaseClient.from('menu_items').insert([{ name, category, price, img: finalPublicUrl, ingredients, sort_order: nextOrder }]);
                 await supabaseClient.from('category_order').upsert({ name: category, sort_order: categoriesList.indexOf(category) }, { onConflict: 'name' });
 
-                alert("Ürün eklendi!");
+                alert("Ürün başarıyla eklendi ve görseli yüklendi!");
                 document.getElementById('p-name').value = ''; document.getElementById('p-price').value = ''; fileInput.value = '';
                 closeModal('product-modal');
                 fetchAdminMenu();
-            } catch (err) { alert("Hata: " + err.message); }
-            finally { btn.disabled = false; btn.innerText = "Ürünü Kaydet"; }
+            } catch (err) { 
+                alert("Yükleme Hatası: " + err.message); 
+            } finally { 
+                btn.disabled = false; 
+                btn.innerText = "Ürünü Kaydet"; 
+            }
         }
 
         async function updatePrice(id, name, currentPrice) {
@@ -367,7 +377,6 @@
             if (isNaN(parsed)) return;
             try {
                 await supabaseClient.from('menu_items').update({ price: parsed }).eq('id', id);
-                // Canlı dizide güncelle ve tabloyu yenile (Yenilemesiz)
                 const idx = allProductsRaw.findIndex(p => p.id === id);
                 if(idx !== -1) allProductsRaw[idx].price = parsed;
                 renderProductsTableUI();
@@ -378,7 +387,6 @@
             if(!confirm(`"${name}" silinsin mi?`)) return;
             try {
                 await supabaseClient.from('menu_items').delete().eq('id', id);
-                // Canlı diziden kaldır ve tabloyu yenile (Yenilemesiz)
                 allProductsRaw = allProductsRaw.filter(p => p.id !== id);
                 renderProductsTableUI();
             } catch (err) { alert("Hata oluştu."); }
