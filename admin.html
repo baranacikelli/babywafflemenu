@@ -9,10 +9,8 @@
 </head>
 <body class="bg-gray-50 min-h-screen font-sans pb-20 relative">
 
-    <!-- MODERN UI TOAST BİLDİRİM ALANI -->
     <div id="toast-container" class="fixed top-5 right-5 z-50 space-y-3 pointer-events-none"></div>
 
-    <!-- GİRİŞ EKRANI -->
     <div id="login-screen" class="flex items-center justify-center min-h-screen px-4">
         <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
             <h1 class="text-2xl font-bold text-gray-800 mb-2 text-center">Baby Waffle</h1>
@@ -32,10 +30,8 @@
         </div>
     </div>
 
-    <!-- PANEL EKRANI -->
     <div id="panel-screen" class="hidden max-w-5xl mx-auto px-4 py-10">
         
-        <!-- ÜST BAR -->
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Baby Waffle Menü Yönetimi</h1>
@@ -49,7 +45,6 @@
             </div>
         </div>
 
-        <!-- KATEGORİ SIRALAMA PANELİ -->
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                 <div>
@@ -63,7 +58,6 @@
             <div id="category-order-list" class="flex flex-wrap gap-3"></div>
         </div>
 
-        <!-- ÜRÜN LİSTESİ TABLOSU -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
@@ -83,7 +77,6 @@
         </div>
     </div>
 
-    <!-- MODAL: KATEGORİ OLUŞTURMA -->
     <div id="category-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <h3 class="text-xl font-bold text-gray-900 mb-4">Yeni Kategori Oluştur</h3>
@@ -100,11 +93,10 @@
         </div>
     </div>
 
-    <!-- MODAL: ÜRÜN EKLEME / DÜZENLEME (ORTAK UI) -->
     <div id="product-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
             <h3 id="product-modal-title" class="text-xl font-bold text-gray-900 mb-4">Yeni Ürün Ekle</h3>
-            <input type="hidden" id="p-id"> <!-- Düzenleme için gizli ID -->
+            <input type="hidden" id="p-id">
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Ürün Adı *</label>
@@ -135,7 +127,6 @@
         </div>
     </div>
 
-    <!-- MODAL: ŞİFRE DEĞİŞTİRME (MODERN UI) -->
     <div id="password-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <h3 class="text-xl font-bold text-gray-900 mb-4">🔐 Yönetici Şifresini Değiştir</h3>
@@ -152,7 +143,6 @@
         </div>
     </div>
 
-    <!-- MODAL: GÜVENLİ SİLME ONAYI (MODERN UI) -->
     <div id="delete-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center">
             <div class="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">⚠️</div>
@@ -161,7 +151,7 @@
             <input type="hidden" id="delete-p-id">
             <div class="flex justify-center gap-3">
                 <button onclick="closeModal('delete-modal')" class="px-5 py-2.5 text-sm font-medium text-gray-500 hover:bg-gray-100 rounded-xl transition">İptal</button>
-                <button onclick="confirmDeleteProduct()" class="bg-red-600 text-white text-sm font-bold px-6 py-2.5 rounded-xl hover:bg-red-700 transition shadow-lg shadow-red-600/10">Evet, Sil</button>
+                <button onclick="confirmDeleteProduct()" class="bg-red-600 text-white text-sm font-bold px-6 py-2.5 rounded-xl hover:bg-red-700 transition shadow-lg">Evet, Sil</button>
             </div>
         </div>
     </div>
@@ -174,7 +164,6 @@
         let categoriesList = [];
         let allProductsRaw = [];
 
-        // MODERN TOAST BİLDİRİM SİSTEMİ
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -187,10 +176,7 @@
             toast.innerText = message;
             container.appendChild(toast);
 
-            setTimeout(() => {
-                toast.classList.remove('translate-y-2', 'opacity-0');
-            }, 50);
-
+            setTimeout(() => { toast.classList.remove('translate-y-2', 'opacity-0'); }, 50);
             setTimeout(() => {
                 toast.classList.add('opacity-0', 'translate-y-[-10px]');
                 setTimeout(() => toast.remove(), 300);
@@ -374,6 +360,7 @@
 
         function updateCategorySelects() {
             const select = document.getElementById('p-category');
+            if(!select) return;
             select.innerHTML = '';
             categoriesList.forEach(cat => { select.innerHTML += `<option value="${cat}">${cat}</option>`; });
         }
@@ -381,7 +368,6 @@
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
-        // MODAL AÇMA: YENİ ÜRÜN İÇİN SIFIRLAMA
         function openAddProductModal() {
             document.getElementById('product-modal-title').innerText = "Yeni Ürün Ekle";
             document.getElementById('p-id').value = "";
@@ -394,7 +380,6 @@
             openModal('product-modal');
         }
 
-        // MODAL AÇMA: DÜZENLEME İÇİN VERİLERİ DOLDURMA
         function openEditProductModal(id) {
             const product = allProductsRaw.find(p => p.id === id);
             if(!product) return;
@@ -422,12 +407,12 @@
             document.getElementById('p-category').value = name;
             document.getElementById('new-cat-name').value = '';
             closeModal('category-modal');
-            showToast("Kategori geçici listeye eklendi.");
+            showToast("Kategori listeye eklendi.");
         }
 
-        // TAM TEŞEKKÜLLÜ EKLEME VE DÜZENLEME (INSERT & UPDATE ORTAK MOTORU)
+        // KESİN ÇÖZÜMLÜ YÜKLEME VE DÜZENLEME MOTORU
         async function saveProduct() {
-            const pId = document.getElementById('p-id').value; // Boş ise EKLEME, dolu ise DÜZENLEME
+            const pId = document.getElementById('p-id').value;
             const name = document.getElementById('p-name').value.trim();
             const category = document.getElementById('p-category').value;
             const price = parseInt(document.getElementById('p-price').value);
@@ -443,7 +428,6 @@
             try {
                 let finalPublicUrl = null;
 
-                // 1. Eğer yeni bir dosya seçildiyse storage'a yüklüyoruz
                 if(fileInput.files.length > 0) {
                     const file = fileInput.files[0];
                     const fileExt = file.name.split('.').pop().toLowerCase();
@@ -459,34 +443,37 @@
                 const ingredients = ingredientsInput ? ingredientsInput.split(',').map(i => i.trim()).filter(i => i !== "") : [];
 
                 if(pId) {
-                    // DÜZENLEME (UPDATE MANTIĞI)
                     const updatePayload = { name, category, price, ingredients };
-                    if(finalPublicUrl) updatePayload.img = finalPublicUrl; // Resim değiştiyse linki de güncelle
+                    if(finalPublicUrl) updatePayload.img = finalPublicUrl;
 
                     const { error: updateError } = await supabaseClient.from('menu_items').update(updatePayload).eq('id', pId);
                     if (updateError) throw updateError;
                     showToast("Ürün başarıyla güncellendi.");
                 } else {
-                    // YENİ EKLEME (INSERT MANTIĞI)
                     const catItems = allProductsRaw.filter(item => item.category === category);
                     const nextOrder = catItems.length + 1;
 
                     const { error: insertError } = await supabaseClient.from('menu_items').insert([{ name, category, price, img: finalPublicUrl, ingredients, sort_order: nextOrder }]);
                     if (insertError) throw insertError;
+                    
+                    // DÜZELTME: Sıralama hesaplamasındaki çökme ihtimali güvenli hale getirildi
+                    let currentCatIndex = categoriesList.indexOf(category);
+                    if(currentCatIndex === -1) currentCatIndex = 0;
+                    
+                    await supabaseClient.from('category_order').upsert({ name: category, sort_order: currentCatIndex }, { onConflict: 'name' });
                     showToast("Yeni ürün başarıyla eklendi.");
                 }
 
                 closeModal('product-modal');
                 fetchAdminMenu();
             } catch (err) { 
-                showToast("Hata: " + err.message, "error"); 
+                showToast("Sistem Hatası: " + err.message, "error"); 
             } finally { 
                 btn.disabled = false; 
                 btn.innerText = "Ürünü Kaydet"; 
             }
         }
 
-        // MODERN UI SİLME MODALI AÇMA
         function openDeleteModal(id, name) {
             document.getElementById('delete-p-id').value = id;
             document.getElementById('delete-modal-text').innerText = `"${name}" ürününü menüden kaldırmak istediğinize emin misiniz?`;
