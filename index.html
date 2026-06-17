@@ -124,12 +124,11 @@
 
         async function fetchMenuFromSupabase() {
             try {
-                // Ürünlerin sıralamasını tam uyumlu hale getiriyoruz (null değerler en sona kalacak şekilde temiz bir asc sıralaması)
+                // Ürünleri kendi içlerindeki sort_order değerine göre küçükten büyüğe sıralı çekiyoruz
                 const { data: itemsData, error: itemsError } = await supabaseClient
                     .from('menu_items')
                     .select('*')
-                    .order('sort_order', { ascending: true, nullsFirst: false })
-                    .order('id', { ascending: true });
+                    .order('sort_order', { ascending: true });
 
                 if (itemsError) throw itemsError;
                 if (!itemsData || itemsData.length === 0) {
@@ -137,10 +136,11 @@
                     return;
                 }
 
+                // Kategorileri panel sıralamasına göre çekiyoruz
                 const { data: orderData } = await supabaseClient
                     .from('category_order')
                     .select('*')
-                    .order('sort_order', { ascending: false });
+                    .order('sort_order', { ascending: true });
 
                 const uniqueCats = [...new Set(itemsData.map(item => item.category))];
 
