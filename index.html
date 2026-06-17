@@ -12,6 +12,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/feather-icons"></script>
     
+    <!-- SUPABASE JAVASCRIPT SDK EKLENDI -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <script>
         tailwind.config = {
             theme: {
@@ -67,7 +70,13 @@
         <div class="flex gap-3 overflow-x-auto hide-scroll pr-6" id="category-nav"></div>
     </div>
 
-    <div id="menu-content" class="px-5 py-8 space-y-10 max-w-2xl mx-auto"></div>
+    <!-- Canlı Veri Yüklenme Durumu Göstergesi -->
+    <div id="menu-loading" class="text-center py-24 text-gray-400 font-sans tracking-wide">
+        <div class="animate-pulse mb-2 text-dark font-medium">Baby Waffle Menü</div>
+        Yükleniyor...
+    </div>
+
+    <div id="menu-content" class="px-5 py-8 space-y-10 max-w-2xl mx-auto hidden"></div>
 
     <div id="product-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-end justify-center backdrop-blur-sm transition-opacity duration-300">
         <div class="bg-white w-full max-w-md rounded-t-3xl h-[85vh] flex flex-col animate-slide-up shadow-2xl overflow-hidden relative">
@@ -117,69 +126,57 @@
     <script>
         feather.replace();
 
-        // GLOBAL DEĞİŞKEN
+        // GLOBAL DEĞİŞKENLER
         let currentBasePrice = 0;
+        let MENU = {};
 
-        // MENÜ VERİSİ
-        const MENU = {
-            "WAFFLE 🧇": [
-                {name: "Baby Classic", price: 310, img: "https://i.imgur.com/Dr9pB48.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği", "Sütlü Çikolata","Beyaz Çikolata", "Muz", "Çilek", "Fındık","Antep Fıstığı"]},
-                {name: "Baby Milk", price: 310, img: "https://i.imgur.com/p62RsK8.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği", "Sütlü Çikolata","Muz", "Çilek", "Fındık","Antep Fıstığı"]},
-                {name: "Baby White", price: 310, img: "https://i.imgur.com/51fJUkd.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği", "Beyaz Çikolata","Çilek","Muz", "Fındık","Antep Fıstığı"]},
-                {name: "Baby Black", price: 310, img: "https://i.imgur.com/I3MGqGp.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği", "Bitter Çikolata","Çilek","Muz", "Fındık","Antep Fıstığı"]},
-                {name: "Baby Gold", price: 320, img: "https://i.imgur.com/K0J8pSK.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği","Sütlü Çikolata","Beyaz Çikolata","Antep Fıstığı Sos","Sos","Karamel Sos","Muz","Çilek","Fındık","Antep Fıstığı"]},
-                {name: "Baby Exotic", price: 315, img: "https://i.imgur.com/Nv6A7QR.png", ingredients: ["Özel Belçika Waffle Ekmeği", "Sütlü Çikolata","Bitter Çikolata","Muz", "Çilek", "Fındık","Antep Fıstığı"]},
-                {name: "Baby Special", price: 325, img: "https://i.imgur.com/Uj5Edx6.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği","Sütlü Çikolata","Beyaz Çikolata","Bitter Çikolata", "Muz", "Çilek","Orman Meyvesi", "Fındık","Antep Fıstığı"]},
-                {name: "Baby Energy", price: 335, img: "https://i.imgur.com/R5jizQ8.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği","Sütlü Çikolata","Bitter Çikolata", "Karamel Sos","Antep Fıstığı Sos","Orman Meyvesi","Muz","Çilek","Fındık","Antep Fıstığı"]},
-                {name: "Baby Bomb", price: 400, img: "https://i.imgur.com/IWjv8Mu.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği","Sütlü Çikolata","Beyaz Çikolata","Bitter Çikolata","Çilek Sos","Karamel Sos","Muz","Çilek","Orman Meyvesi","Fındık","Antep Fıstığı"]},
-                {name: "Baby Double", price: 550, img: "https://i.imgur.com/Aldx6Q8.png", ingredients: ["Özel Belçika Waffle Ekmeği","Sütlü Çikolata","Beyaz Çikolata","Bitter Çikolata", "Muz", "Çilek","Orman Meyvesi", "Fındık","Antep Fıstığı",]},
-                {name: "Baby Triple", price: 320, img: "https://i.imgur.com/Uj5Edx6.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği","Sütlü Çikolata","Beyaz Çikolata","Bitter Çikolata", "Muz", "Çilek", "Fındık","Antep Fıstığı"]},
-                {name: "Baby Natural", price: 265, img: "https://i.imgur.com/mTH4wGu.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği","Sütlü Çikolata","Beyaz Çikolata","Bitter Çikolata","Fındık","Antep Fıstığı"]},
-                {name: "Baby Dubai", price: 470, img: "https://i.imgur.com/1L7scXx.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği","Sütlü Çikolata","Antep Fıstığı Sosu","Fıstık Ezmesi","Kadayıf","Çilek","Muz","Antep Fıstığı"]},
-                {name: "Baby Dubai Meyvesiz", price: 450, img: "https://i.imgur.com/1L7scXx.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği","Sütlü Çikolata","Antep Fıstığı Sosu","Fıstık Ezmesi","Kadayıf","Antep Fıstığı"]}
-            ],
-            "CUP WAFFLE 🧇": [
-                {name: "Cup Classic", price: 200, img: "https://i.imgur.com/YEg4yjx.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği", "Sütlü Çikolata","Beyaz Çikolata", "Muz", "Çilek", "Fındık","Antep Fıstığı"]},
-                {name: "Cup Milk", price: 200, img: "https://i.imgur.com/YEg4yjx.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği", "Sütlü Çikolata","Muz", "Çilek", "Fındık","Antep Fıstığı"]},
-                {name: "Cup White", price: 200, img: "https://i.imgur.com/YEg4yjx.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği", "Beyaz Çikolata","Çilek","Muz", "Fındık","Antep Fıstığı"]},
-                {name: "Cup Black", price: 200, img: "https://i.imgur.com/YEg4yjx.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği", "Bitter Çikolata","Çilek","Muz", "Fındık","Antep Fıstığı"]},
-                {name: "Cup Gold", price: 225, img: "https://i.imgur.com/YEg4yjx.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği","Sütlü Çikolata","Beyaz Çikolata","Antep Fıstığı Sos","Sos","Karamel Sos","Muz","Çilek","Fındık","Antep Fıstığı"]},
-                {name: "Cup Exotic", price: 225, img: "https://i.imgur.com/YEg4yjx.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği", "Sütlü Çikolata","Bitter Çikolata","Muz", "Çilek", "Fındık","Antep Fıstığı"]},
-                {name: "Cup Special", price: 230, img: "https://i.imgur.com/YEg4yjx.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği","Sütlü Çikolata","Beyaz Çikolata","Bitter Çikolata", "Muz", "Çilek","Orman Meyvesi", "Fındık","Antep Fıstığı"]},
-                {name: "Cup Energy", price: 235, img: "https://i.imgur.com/YEg4yjx.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği","Sütlü Çikolata","Bitter Çikolata", "Karamel Sos","Antep Fıstığı Sos","Orman Meyvesi","Muz","Çilek","Fındık","Antep Fıstığı"]},
-                {name: "Cup Bomb", price: 245, img: "https://i.imgur.com/YEg4yjx.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği","Sütlü Çikolata","Beyaz Çikolata","Bitter Çikolata","Çilek Sos","Karamel Sos","Muz","Çilek","Orman Meyvesi","Fındık","Antep Fıstığı"]},
-                {name: "Cup Triple", price: 230, img: "https://i.imgur.com/YEg4yjx.jpeg", ingredients: ["Özel Belçika Waffle Ekmeği","Sütlü Çikolata","Beyaz Çikolata","Bitter Çikolata", "Muz", "Çilek", "Fındık","Antep Fıstığı"]}
-            ],
-                        "TOST 🥪": [
-                {name: "Kaşarlı Tost", price: 115, img: "https://i.imgur.com/AaaufGm.jpeg", ingredients: []},
-                {name: "Sucuklu Tost", price: 125, img: "https://i.imgur.com/JUFtmAh.jpeg", ingredients: []},
-                {name: "Karışık Tost", price: 135, img: "https://i.imgur.com/77ShF5U.jpeg", ingredients: []}
-            ],
-            "SICAK ☕": [
-                {name: "Çay", price: 30, img: "https://i.imgur.com/ZiPJEh1.jpeg", ingredients: []},
-                {name: "Türk Kahvesi", price: 100, img: "https://i.imgur.com/gUVJoCc.jpeg", ingredients: []},
-                {name: "Americano", price: 135, img: "https://i.imgur.com/SbwLSqm.jpeg", ingredients: []},
-                {name: "Espresso", price: 80, img: "https://i.imgur.com/Zx9T9gI.jpeg", ingredients: []},
-                {name: "Filtre Kahve", price: 115, img: "https://i.imgur.com/Gv9I2Gl.jpeg", ingredients: []},
-                {name: "Latte", price: 145, img: "https://i.imgur.com/QBCGrsW.jpeg", ingredients: []},
-                {name: "Caramel Latte", price: 150, img: "https://i.imgur.com/5vvvRNI.jpeg", ingredients: []},
-                {name: "Caramel Machiato", price: 160, img: "https://i.imgur.com/hCfmMUp.jpeg", ingredients: []},
-                {name: "Sıcak Çikolata", price: 150, img: "https://i.imgur.com/mHU9oXW.png", ingredients: []}
-            ],
-            "SOĞUK 🍹": [
-                {name: "Ice Americano", price: 135, img: "https://i.imgur.com/sIXBOjY.jpeg", ingredients: []},
-                {name: "Ice Latte", price: 145, img: "https://i.imgur.com/Le0OvXz.jpeg", ingredients: []},
-                {name: "Ice Caramel Latte", price: 150, img: "https://i.imgur.com/fC5wS9g.jpeg", ingredients: []},
-                {name: "Ice Caramel Macchiato", price: 160, img: "https://i.imgur.com/7wzZfzU.jpeg", ingredients: []},
-                {name: "Su", price: 20, img: "https://i.imgur.com/1XTXIOC.jpeg", ingredients: []},
-                {name: "Soda", price: 40, img: "https://i.imgur.com/v9oJsTq.jpeg", ingredients: []},
-                {name: "Limonata", price: 115, img: "https://i.imgur.com/quSFVuO.png", ingredients: []},
-                {name: "Coca Cola", price: 65, img: "https://i.imgur.com/N7aOsGv.png", ingredients: []},
-                {name: "Ice Tea Limon", price: 65, img: "https://i.imgur.com/1monx0d.png", ingredients: []},
-                {name: "Ice Tea Mango", price: 65, img: "https://i.imgur.com/OjxD3R4.jpeg", ingredients: []},
-                {name: "Ice Tea Şeftali", price: 65, img: "https://i.imgur.com/1zGVRUO.png", ingredients: []}
-            ]
-        };
+        // GÖNDERDİĞİNİZ SUPABASE ABONELİK BİLGİLERİ ENTEGRE EDİLDİ
+        const SUPABASE_URL = 'https://zgdmnhjlxizkyecdfmuv.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_DSi2MyU5xEIAl9kqwQrTQw_oBRqBsQZ';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // VERİTABANINDAN VERİ ÇEKME FONKSİYONU
+        async function fetchMenuFromSupabase() {
+            try {
+                // menu_items tablosundaki tüm verileri id sırasına göre çekiyoruz
+                const { data, error } = await supabase
+                    .from('menu_items')
+                    .select('*')
+                    .order('id', { ascending: true });
+
+                if (error) throw error;
+
+                // Düz satır verilerini mevcut kategori yapısına dönüştür
+                data.forEach(item => {
+                    if (!MENU[item.category]) {
+                        MENU[item.category] = [];
+                    }
+                    MENU[item.category].push({
+                        name: item.name,
+                        price: Number(item.price),
+                        img: item.img || 'https://placehold.co/100x100?text=Urun',
+                        ingredients: item.ingredients || []
+                    });
+                });
+
+                // Yükleniyor alanını gizle, menüyü göster ve render et
+                document.getElementById('menu-loading').classList.add('hidden');
+                document.getElementById('menu-content').classList.remove('hidden');
+                
+                renderMenu();
+
+                // İlk kategoriye otomatik tıklama simülasyonu
+                setTimeout(() => { 
+                    if(document.querySelector('#category-nav button')) {
+                        document.querySelector('#category-nav button').click();
+                    }
+                }, 100);
+
+            } catch (err) {
+                console.error("Supabase veri çekme hatası:", err);
+                document.getElementById('menu-loading').innerText = "Menü yüklenirken teknik bir sorun oluştu.";
+            }
+        }
 
         function renderMenu() {
             const nav = document.getElementById('category-nav');
@@ -233,13 +230,9 @@
             const sizeWrapper = document.getElementById('size-options-wrapper');
             const radios = document.getElementsByName('size');
             
-            // HER DURUMDA RADIO'YU SIFIRLA
-            // Bu, önceki seçimlerden kalan +30TL bilgisini temizler
             radios[0].checked = true;
             updatePrice(0); 
 
-            // GÖRÜNÜRLÜK MANTIĞI (GÜNCELLENDİ)
-            // Kategori WAFFLE içerecek AMA CUP içermeyecek
             if (categoryName.includes('WAFFLE') && !categoryName.includes('CUP')) {
                 sizeWrapper.classList.remove('hidden');
             } else {
@@ -290,8 +283,8 @@
             } 
         };
 
-        renderMenu();
-        setTimeout(() => { if(document.querySelector('#category-nav button')) document.querySelector('#category-nav button').click(); }, 100);
+        // Supabase sistemini tetikle
+        fetchMenuFromSupabase();
     </script>
 </body>
 </html>
