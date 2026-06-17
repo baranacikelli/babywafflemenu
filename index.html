@@ -11,8 +11,6 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/feather-icons"></script>
-    
-    <!-- SUPABASE JAVASCRIPT SDK EKLENDI -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <script>
@@ -44,16 +42,7 @@
         .glass-nav { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0,0,0,0.05); }
         .item-card:active { transform: scale(0.98); }
         .item-image { box-shadow: 0 8px 20px -5px rgba(0,0,0,0.1); }
-        
-        /* Radio Button Styling */
-        .size-radio:checked + div {
-            background-color: #1A1A1A;
-            color: white;
-            border-color: #1A1A1A;
-        }
-        .size-radio:checked + div .check-icon {
-            display: block;
-        }
+        .size-radio:checked + div { background-color: #1A1A1A; color: white; border-color: #1A1A1A; }
     </style>
 </head>
 <body class="pb-10">
@@ -62,7 +51,7 @@
         <img src="https://i.imgur.com/J8Cx9C9.png" class="w-full h-full object-cover opacity-70">
         <div class="absolute inset-0 bg-gradient-to-t from-[#FAFAFA] via-transparent to-black/40"></div>
         <div class="absolute bottom-6 left-6 right-6">
-            <h1 class="font-serif text-4xl font-bold text-dark leading-none drop-shadow-sm"><br></h1>
+            <h1 class="font-serif text-4xl font-bold text-dark leading-none drop-shadow-sm">Baby Waffle</h1>
         </div>
     </header>
 
@@ -70,17 +59,15 @@
         <div class="flex gap-3 overflow-x-auto hide-scroll pr-6" id="category-nav"></div>
     </div>
 
-    <!-- Canlı Veri Yüklenme Durumu Göstergesi -->
-    <div id="menu-loading" class="text-center py-24 text-gray-400 font-sans tracking-wide">
-        <div class="animate-pulse mb-2 text-dark font-medium">Baby Waffle Menü</div>
-        Yükleniyor...
+    <div id="loading" class="text-center py-20">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-black mb-2"></div>
+        <p class="text-xs text-gray-400 font-medium">Menü yükleniyor...</p>
     </div>
 
     <div id="menu-content" class="px-5 py-8 space-y-10 max-w-2xl mx-auto hidden"></div>
 
     <div id="product-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-end justify-center backdrop-blur-sm transition-opacity duration-300">
         <div class="bg-white w-full max-w-md rounded-t-3xl h-[85vh] flex flex-col animate-slide-up shadow-2xl overflow-hidden relative">
-            
             <div class="relative h-64 shrink-0">
                 <img id="modal-img" src="" class="w-full h-full object-cover">
                 <div class="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent pointer-events-none"></div>
@@ -88,13 +75,11 @@
                     <i data-feather="x" class="w-5 h-5"></i>
                 </button>
             </div>
-
             <div class="px-6 flex-1 overflow-y-auto pb-10">
                 <div class="mb-6">
                     <h2 class="text-3xl font-serif font-bold text-dark leading-tight" id="modal-title">Ürün Adı</h2>
                     <p class="text-2xl font-bold text-gold mt-2" id="modal-display-price">0 ₺</p>
                 </div>
-
                 <div id="size-options-wrapper" class="hidden mb-8">
                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Porsiyon Seçimi</h3>
                     <div class="grid grid-cols-2 gap-3">
@@ -114,7 +99,6 @@
                         </label>
                     </div>
                 </div>
-
                 <div id="ingredients-wrapper" class="hidden mb-6">
                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">İçindekiler</h3>
                     <div id="modal-ingredients" class="space-y-2"></div>
@@ -124,57 +108,51 @@
     </div>
 
     <script>
-        feather.replace();
+        const SUPABASE_URL = 'https://zgdmnhjlxizkyecdfmuv.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnZG1uaGpseGl6a3llY2RmbXV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjUyMzcsImV4cCI6MjA5NzMwMTIzN30.L-KV8VKywt9fOF5jLDQFYOCX2kCEDrtXHRZFEBk2ARk';
+        
+        // Supabase bağlantısını en yalın haliyle başlatıyoruz
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: { persistSession: false }
+        });
 
-        // GLOBAL DEĞİŞKENLER
         let currentBasePrice = 0;
         let MENU = {};
 
-        // GÖNDERDİĞİNİZ SUPABASE ABONELİK BİLGİLERİ ENTEGRE EDİLDİ
-        const SUPABASE_URL = 'https://zgdmnhjlxizkyecdfmuv.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnZG1uaGpseGl6a3llY2RmbXV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjUyMzcsImV4cCI6MjA5NzMwMTIzN30.L-KV8VKywt9fOF5jLDQFYOCX2kCEDrtXHRZFEBk2ARk';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        // VERİTABANINDAN VERİ ÇEKME FONKSİYONU
         async function fetchMenuFromSupabase() {
             try {
-                // menu_items tablosundaki tüm verileri id sırasına göre çekiyoruz
-                const { data, error } = await supabase
+                // Sadece menu_items tablosunu çekiyoruz
+                const { data, error } = await supabaseClient
                     .from('menu_items')
                     .select('*')
                     .order('id', { ascending: true });
 
                 if (error) throw error;
+                if (!data || data.length === 0) {
+                    document.getElementById('loading').innerHTML = `<p class="text-gray-500 text-sm">Veritabanında ürün bulunamadı.</p>`;
+                    return;
+                }
 
-                // Düz satır verilerini mevcut kategori yapısına dönüştür
+                MENU = {};
                 data.forEach(item => {
                     if (!MENU[item.category]) {
                         MENU[item.category] = [];
                     }
                     MENU[item.category].push({
                         name: item.name,
-                        price: Number(item.price),
-                        img: item.img || 'https://placehold.co/100x100?text=Urun',
+                        price: item.price,
+                        img: item.img,
                         ingredients: item.ingredients || []
                     });
                 });
 
-                // Yükleniyor alanını gizle, menüyü göster ve render et
-                document.getElementById('menu-loading').classList.add('hidden');
+                document.getElementById('loading').classList.add('hidden');
                 document.getElementById('menu-content').classList.remove('hidden');
                 
                 renderMenu();
-
-                // İlk kategoriye otomatik tıklama simülasyonu
-                setTimeout(() => { 
-                    if(document.querySelector('#category-nav button')) {
-                        document.querySelector('#category-nav button').click();
-                    }
-                }, 100);
-
             } catch (err) {
-                console.error("Supabase veri çekme hatası:", err);
-                document.getElementById('menu-loading').innerText = "Menü yüklenirken teknik bir sorun oluştu.";
+                console.error("Hata ayrıntısı:", err);
+                document.getElementById('loading').innerHTML = `<p class="text-red-500 text-sm">Bağlantı hatası. Lütfen sayfayı yenileyin.</p>`;
             }
         }
 
@@ -186,7 +164,6 @@
 
             for (const [cat, items] of Object.entries(MENU)) {
                 const catId = `cat-${idx}`;
-                
                 nav.innerHTML += `<button onclick="scrollToCat('${catId}')" id="btn-${catId}" class="px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap bg-white border border-gray-200 text-gray-500 hover:bg-black hover:text-white transition-all">${cat}</button>`;
                 
                 const isDrinkCategory = cat.includes("SICAK") || cat.includes("SOĞUK");
@@ -194,11 +171,11 @@
 
                 let itemsHtml = '';
                 items.forEach((item, i) => {
-                    const delay = i * 50;
+                    const delay = i * 20;
                     const itemData = encodeURIComponent(JSON.stringify(item));
                     itemsHtml += `
                         <div onclick="openProductModal('${itemData}', '${cat}')" class="item-card flex gap-5 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 animate-fade-up cursor-pointer transition-transform" style="animation-delay: ${delay}ms">
-                            <img src="${item.img}" class="w-24 h-24 rounded-xl object-cover bg-gray-100 flex-shrink-0 item-image" onerror="this.src='https://placehold.co/100x100?text=Urun'">
+                            <img src="${item.img}" class="w-24 h-24 rounded-xl object-cover bg-gray-100 flex-shrink-0 item-image" onerror="this.src='https://placehold.co/100x100?text=BabyWaffle'">
                             <div class="flex flex-col justify-between flex-1 py-1">
                                 <div>
                                     <h3 class="font-serif text-lg font-bold leading-tight text-dark">${item.name}</h3>
@@ -212,15 +189,15 @@
                         </div>`;
                 });
                 
-                content.innerHTML += `<div id="${catId}" class="scroll-mt-32 mb-10"><h2 class="font-serif text-3xl font-bold text-dark mb-6 pl-2 border-l-4 border-black">${cat.split(' ')[0]}</h2><div class="grid gap-4 md:grid-cols-2">${itemsHtml}</div></div>`;
+                content.innerHTML += `<div id="${catId}" class="scroll-mt-32 mb-10"><h2 class="font-serif text-3xl font-bold text-dark mb-6 pl-2 border-l-4 border-black">${cat}</h2><div class="grid gap-4 md:grid-cols-2">${itemsHtml}</div></div>`;
                 idx++;
             }
             feather.replace();
+            if(document.querySelector('#category-nav button')) document.querySelector('#category-nav button').click();
         }
 
         function openProductModal(itemData, categoryName) {
             const item = JSON.parse(decodeURIComponent(itemData));
-            
             currentBasePrice = item.price;
             
             document.getElementById('modal-img').src = item.img;
@@ -283,7 +260,7 @@
             } 
         };
 
-        // Supabase sistemini tetikle
+        // Doğrudan veriyi çekmeye başla
         fetchMenuFromSupabase();
     </script>
 </body>
