@@ -118,9 +118,12 @@
         let currentBasePrice = 0;
         let MENU = {};
 
+        function generateSafeId(string) {
+            return 'cat-' + btoa(encodeURIComponent(string)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+        }
+
         async function fetchMenuFromSupabase() {
             try {
-                // 1. Tüm menü ürünlerini çekiyoruz
                 const { data: itemsData, error: itemsError } = await supabaseClient
                     .from('menu_items')
                     .select('*');
@@ -131,16 +134,14 @@
                     return;
                 }
 
-                // 2. Admin panelinde ayarlanan kategori sıralamasını çekiyoruz
+                // DÜZELTME: Doğru panel sıralaması için sıralama yönünü descending yapıyoruz
                 const { data: orderData } = await supabaseClient
                     .from('category_order')
                     .select('*')
-                    .order('sort_order', { ascending: true });
+                    .order('sort_order', { ascending: false });
 
-                // Menüdeki mevcut benzersiz kategorileri bul
                 const uniqueCats = [...new Set(itemsData.map(item => item.category))];
 
-                // Kategorileri paneldeki sıraya göre diz
                 let sortedCategories = [];
                 if (orderData && orderData.length > 0) {
                     orderData.forEach(o => {
@@ -153,10 +154,8 @@
                     sortedCategories = uniqueCats;
                 }
 
-                // 3. MENU nesnesini bu sıralamaya uygun olarak oluşturuyoruz
                 MENU = {};
                 sortedCategories.forEach(cat => {
-                    // Bu kategoriye ait ürünleri filtrele
                     const catItems = itemsData.filter(item => item.category === cat);
                     if (catItems.length > 0) {
                         MENU[cat] = catItems.map(item => ({
@@ -181,11 +180,10 @@
         function renderMenu() {
             const nav = document.getElementById('category-nav');
             const content = document.getElementById('menu-content');
-            let idx = 0;
             nav.innerHTML = ''; content.innerHTML = '';
 
             for (const [cat, items] of Object.entries(MENU)) {
-                const catId = `cat-${idx}`;
+                const catId = generateSafeId(cat);
                 nav.innerHTML += `<button onclick="scrollToCat('${catId}')" id="btn-${catId}" class="px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap bg-white border border-gray-200 text-gray-500 hover:bg-black hover:text-white transition-all">${cat}</button>`;
                 
                 const isDrinkCategory = cat.includes("SICAK") || cat.includes("SOĞUK");
@@ -196,7 +194,7 @@
                     const delay = i * 20;
                     const itemData = encodeURIComponent(JSON.stringify(item));
                     itemsHtml += `
-                        <div onclick="openProductModal('${itemData}', '${cat}')" class="item-card flex gap-5 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 animate-fade-up cursor-pointer transition-transform" style="animation-delay: ${delay}ms">
+                        <div onclick="openProductModal('${itemData}', '${cat.replace(/'/g, "\\'")}')" class="item-card flex gap-5 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 animate-fade-up cursor-pointer transition-transform" style="animation-delay: ${delay}ms">
                             <img src="${item.img}" class="w-24 h-24 rounded-xl object-cover bg-gray-100 flex-shrink-0 item-image" onerror="this.src='https://placehold.co/100x100?text=BabyWaffle'">
                             <div class="flex flex-col justify-between flex-1 py-1">
                                 <div>
@@ -212,7 +210,6 @@
                 });
                 
                 content.innerHTML += `<div id="${catId}" class="scroll-mt-32 mb-10"><h2 class="font-serif text-3xl font-bold text-dark mb-6 pl-2 border-l-4 border-black">${cat}</h2><div class="grid gap-4 md:grid-cols-2">${itemsHtml}</div></div>`;
-                idx++;
             }
             feather.replace();
             if(document.querySelector('#category-nav button')) document.querySelector('#category-nav button').click();
@@ -275,8 +272,10 @@
                     b.classList.add('bg-white', 'text-gray-500', 'border-gray-200'); 
                 }); 
                 const btn = document.getElementById(`btn-${id}`); 
-                btn.classList.remove('bg-white', 'text-gray-500', 'border-gray-200'); 
-                btn.classList.add('bg-black', 'text-white', 'border-black'); 
+                if(btn) {
+                    btn.classList.remove('bg-white', 'text-gray-500', 'border-gray-200'); 
+                    btn.classList.add('bg-black', 'text-white', 'border-black'); 
+                }
                 const y = el.getBoundingClientRect().top + window.pageYOffset - 120; 
                 window.scrollTo({top: y, behavior: 'smooth'}); 
             } 
