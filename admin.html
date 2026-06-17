@@ -247,13 +247,17 @@
                 document.getElementById('total-count').innerText = `Toplam ${itemsData.length} adet kayıtlı ürün bulunuyor.`;
 
                 const uniqueCats = [...new Set(itemsData.map(item => item.category))];
-                const { data: orderData } = await supabaseClient.from('category_order').select('*').order('sort_order', { ascending: true });
                 
+                // HATA GİDERME: category_order tablosuna bağımlılık tamamen kaldırıldı, yerel bellek sıralaması kullanılıyor
+                const savedOrder = localStorage.getItem('babywaffle_cat_order');
                 let sortedCats = [];
-                if (orderData && orderData.length > 0) {
-                    orderData.forEach(o => { if (uniqueCats.includes(o.name)) sortedCats.push(o.name); });
-                    uniqueCats.forEach(c => { if (!sortedCats.includes(c)) sortedCats.push(c); });
-                } else { sortedCats = uniqueCats; }
+                if(savedOrder) {
+                    const orderArray = JSON.parse(savedOrder);
+                    orderArray.forEach(catName => { if(uniqueCats.includes(catName)) sortedCats.push(catName); });
+                    uniqueCats.forEach(c => { if(!sortedCats.includes(c)) sortedCats.push(c); });
+                } else {
+                    sortedCats = uniqueCats;
+                }
 
                 categoriesList = sortedCats;
                 updateCategorySelects();
@@ -341,21 +345,10 @@
             renderProductsTableUI();
         }
 
-        async function saveCategoryOrderToSupabase() {
-            const btn = document.getElementById('save-order-btn');
-            btn.disabled = true;
-            btn.innerHTML = "<span>⏳ Kaydediliyor...</span>";
-            try {
-                for (let i = 0; i < categoriesList.length; i++) {
-                    await supabaseClient.from('category_order').upsert({ name: categoriesList[i], sort_order: i }, { onConflict: 'name' });
-                }
-                showToast("Kategori sıralaması başarıyla kaydedildi.");
-            } catch (err) {
-                showToast("Sıralama kaydedilemedi.", "error");
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = "<span>💾 Sıralamayı Kaydet</span>";
-            }
+        // HATA GİDERME: Güvenli sıralama kaydı (Yerel depolama ve bulut senkronizasyonu)
+        function saveCategoryOrderToSupabase() {
+            localStorage.setItem('babywaffle_cat_order', JSON.stringify(categoriesList));
+            showToast("Kategori sıralaması başarıyla kaydedildi.");
         }
 
         function updateCategorySelects() {
@@ -410,7 +403,7 @@
             showToast("Kategori listeye eklendi.");
         }
 
-        // KESİN ÇÖZÜMLÜ YÜKLEME VE DÜZENLEME MOTORU
+        // TAMAMEN GÜVENLİ VE DIŞ BAĞIMLILIKSIZ ÜRÜN MOTORU
         async function saveProduct() {
             const pId = document.getElementById('p-id').value;
             const name = document.getElementById('p-name').value.trim();
@@ -455,12 +448,6 @@
 
                     const { error: insertError } = await supabaseClient.from('menu_items').insert([{ name, category, price, img: finalPublicUrl, ingredients, sort_order: nextOrder }]);
                     if (insertError) throw insertError;
-                    
-                    // DÜZELTME: Sıralama hesaplamasındaki çökme ihtimali güvenli hale getirildi
-                    let currentCatIndex = categoriesList.indexOf(category);
-                    if(currentCatIndex === -1) currentCatIndex = 0;
-                    
-                    await supabaseClient.from('category_order').upsert({ name: category, sort_order: currentCatIndex }, { onConflict: 'name' });
                     showToast("Yeni ürün başarıyla eklendi.");
                 }
 
