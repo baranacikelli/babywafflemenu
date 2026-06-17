@@ -124,7 +124,7 @@
 
         async function fetchMenuFromSupabase() {
             try {
-                // Ürünleri çekerken sort_order sütununa (küçükten büyüğe) veya id'ye göre sıralıyoruz
+                // Ürünlerin sıralamasını tam uyumlu hale getiriyoruz (null değerler en sona kalacak şekilde temiz bir asc sıralaması)
                 const { data: itemsData, error: itemsError } = await supabaseClient
                     .from('menu_items')
                     .select('*')
@@ -137,7 +137,6 @@
                     return;
                 }
 
-                // Kategorileri panel sırasına (büyükten küçüğe) göre çekiyoruz
                 const { data: orderData } = await supabaseClient
                     .from('category_order')
                     .select('*')
