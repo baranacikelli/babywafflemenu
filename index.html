@@ -111,7 +111,6 @@
         const SUPABASE_URL = 'https://zgdmnhjlxizkyecdfmuv.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnZG1uaGpseGl6a3llY2RmbXV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjUyMzcsImV4cCI6MjA5NzMwMTIzN30.L-KV8VKywt9fOF5jLDQFYOCX2kCEDrtXHRZFEBk2ARk';
         
-        // Supabase bağlantısını en yalın haliyle başlatıyoruz
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             auth: { persistSession: false }
         });
@@ -121,29 +120,52 @@
 
         async function fetchMenuFromSupabase() {
             try {
-                // Sadece menu_items tablosunu çekiyoruz
-                const { data, error } = await supabaseClient
+                // 1. Tüm menü ürünlerini çekiyoruz
+                const { data: itemsData, error: itemsError } = await supabaseClient
                     .from('menu_items')
-                    .select('*')
-                    .order('id', { ascending: true });
+                    .select('*');
 
-                if (error) throw error;
-                if (!data || data.length === 0) {
+                if (itemsError) throw itemsError;
+                if (!itemsData || itemsData.length === 0) {
                     document.getElementById('loading').innerHTML = `<p class="text-gray-500 text-sm">Veritabanında ürün bulunamadı.</p>`;
                     return;
                 }
 
-                MENU = {};
-                data.forEach(item => {
-                    if (!MENU[item.category]) {
-                        MENU[item.category] = [];
-                    }
-                    MENU[item.category].push({
-                        name: item.name,
-                        price: item.price,
-                        img: item.img,
-                        ingredients: item.ingredients || []
+                // 2. Admin panelinde ayarlanan kategori sıralamasını çekiyoruz
+                const { data: orderData } = await supabaseClient
+                    .from('category_order')
+                    .select('*')
+                    .order('sort_order', { ascending: true });
+
+                // Menüdeki mevcut benzersiz kategorileri bul
+                const uniqueCats = [...new Set(itemsData.map(item => item.category))];
+
+                // Kategorileri paneldeki sıraya göre diz
+                let sortedCategories = [];
+                if (orderData && orderData.length > 0) {
+                    orderData.forEach(o => {
+                        if (uniqueCats.includes(o.name)) sortedCategories.push(o.name);
                     });
+                    uniqueCats.forEach(c => {
+                        if (!sortedCategories.includes(c)) sortedCategories.push(c);
+                    });
+                } else {
+                    sortedCategories = uniqueCats;
+                }
+
+                // 3. MENU nesnesini bu sıralamaya uygun olarak oluşturuyoruz
+                MENU = {};
+                sortedCategories.forEach(cat => {
+                    // Bu kategoriye ait ürünleri filtrele
+                    const catItems = itemsData.filter(item => item.category === cat);
+                    if (catItems.length > 0) {
+                        MENU[cat] = catItems.map(item => ({
+                            name: item.name,
+                            price: item.price,
+                            img: item.img,
+                            ingredients: item.ingredients || []
+                        }));
+                    }
                 });
 
                 document.getElementById('loading').classList.add('hidden');
@@ -260,7 +282,6 @@
             } 
         };
 
-        // Doğrudan veriyi çekmeye başla
         fetchMenuFromSupabase();
     </script>
 </body>
