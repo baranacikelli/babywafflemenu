@@ -2,122 +2,106 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Baby Waffle - Gelişmiş Yönetim Paneli</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Baby Waffle Menü</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        serif: ['"Cormorant Garamond"', 'serif'],
+                        sans: ['"Inter"', 'sans-serif'],
+                    },
+                    colors: { cream: '#FDFBF7', dark: '#1A1A1A', gold: '#D4AF37', softGray: '#F3F4F6' },
+                    animation: {
+                        'fade-up': 'fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                        'slide-up': 'slideUp 0.4s ease-out forwards'
+                    },
+                    keyframes: {
+                        fadeUp: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        slideUp: { '0%': { transform: 'translateY(100%)' }, '100%': { transform: 'translateY(0)' } }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        body { background-color: #FAFAFA; color: #1A1A1A; }
+        .glass-nav { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0,0,0,0.05); }
+        .item-card:active { transform: scale(0.98); }
+        .item-image { box-shadow: 0 8px 20px -5px rgba(0,0,0,0.1); }
+        .size-radio:checked + div { background-color: #1A1A1A; color: white; border-color: #1A1A1A; }
+    </style>
 </head>
-<body class="bg-gray-50 min-h-screen font-sans pb-20">
+<body class="pb-10">
 
-    <div id="login-screen" class="flex items-center justify-center min-h-screen px-4">
-        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-100">
-            <h1 class="text-2xl font-bold text-gray-800 mb-2 text-center">Baby Waffle</h1>
-            <p class="text-sm text-gray-400 text-center mb-6">Yönetici Girişi</p>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Yönetici Şifresi</label>
-                    <input type="password" id="admin-password" placeholder="••••••••" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-black transition">
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="remember-me" class="w-4 h-4 text-black border-gray-300 rounded focus:ring-black cursor-pointer">
-                    <label for="remember-me" class="ml-2 text-sm text-gray-600 select-none cursor-pointer">Beni Hatırla</label>
-                </div>
-                <p id="login-error" class="text-red-500 text-xs hidden text-center font-medium">Hatalı şifre girdiniz veya bağlantı hatası!</p>
-                <button onclick="checkPassword()" class="w-full bg-black text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition shadow-lg">Giriş Yap</button>
-            </div>
+    <header class="relative h-[30vh] w-full overflow-hidden bg-black">
+        <img src="https://i.imgur.com/J8Cx9C9.png" class="w-full h-full object-cover opacity-70">
+        <div class="absolute inset-0 bg-gradient-to-t from-[#FAFAFA] via-transparent to-black/40"></div>
+        <div class="absolute bottom-6 left-6 right-6">
+            <h1 class="font-serif text-4xl font-bold text-dark leading-none drop-shadow-sm">Baby Waffle</h1>
         </div>
+    </header>
+
+    <div class="sticky top-0 z-30 glass-nav py-4 pl-6 border-b border-gray-100">
+        <div class="flex gap-3 overflow-x-auto hide-scroll pr-6" id="category-nav"></div>
     </div>
 
-    <div id="panel-screen" class="hidden max-w-5xl mx-auto px-4 py-10">
-        
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-            <div>
-                <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Baby Waffle Menü Yönetimi</h1>
-                <p class="text-sm text-gray-500 mt-1" id="total-count">Yükleniyor...</p>
-            </div>
-            <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                <button onclick="changeAdminPassword()" class="bg-amber-500 text-white font-bold px-4 py-3 rounded-xl text-sm hover:bg-amber-600 transition shadow-sm">🔐 Şifreyi Değiştir</button>
-                <button onclick="openModal('category-modal')" class="bg-gray-200 text-gray-800 font-bold px-4 py-3 rounded-xl text-sm hover:bg-gray-300 transition">Kategori Oluştur</button>
-                <button onclick="openModal('product-modal')" class="bg-black text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-gray-800 transition shadow-md">+ Yeni Ürün Ekle</button>
-                <button onclick="logout()" class="bg-red-50 text-red-600 font-bold px-4 py-3 rounded-xl text-sm hover:bg-red-100 transition">Çıkış</button>
-            </div>
-        </div>
+    <div id="loading" class="text-center py-20">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-black mb-2"></div>
+        <p class="text-xs text-gray-400 font-medium">Menü yükleniyor...</p>
+    </div>
 
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-                <div>
-                    <h2 class="text-lg font-bold text-gray-800">↔️ Kategori Sıralaması (Menüde Soldan Sağa Dizilim)</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">Kategorileri butonlarla dizin ve ardından mutlaka "Sıralamayı Kaydet" butonuna basın.</p>
-                </div>
-                <button id="save-order-btn" onclick="saveCategoryOrderToSupabase()" class="w-full md:w-auto bg-green-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-green-700 transition shadow-md shadow-green-600/10 flex items-center justify-center gap-2">
-                    <span>💾 Sıralamayı Kaydet</span>
+    <div id="menu-content" class="px-5 py-8 space-y-10 max-w-2xl mx-auto hidden"></div>
+
+    <div id="product-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-end justify-center backdrop-blur-sm transition-opacity duration-300">
+        <div class="bg-white w-full max-w-md rounded-t-3xl h-[85vh] flex flex-col animate-slide-up shadow-2xl overflow-hidden relative">
+            <div class="relative h-64 shrink-0">
+                <img id="modal-img" src="" class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent pointer-events-none"></div>
+                <button onclick="closeProductModal()" class="absolute top-4 right-4 bg-white/90 p-2 rounded-full shadow-lg text-black hover:bg-white transition z-20 cursor-pointer">
+                    <i data-feather="x" class="w-5 h-5"></i>
                 </button>
             </div>
-            <div id="category-order-list" class="flex flex-wrap gap-3"></div>
-        </div>
-
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                            <th class="p-4 pl-6">Sıra</th>
-                            <th class="p-4">Görsel</th>
-                            <th class="p-4">Ürün Adı</th>
-                            <th class="p-4">Kategori</th>
-                            <th class="p-4">Fiyat</th>
-                            <th class="p-4 pr-6 text-right">İşlemler</th>
-                        </tr>
-                    </thead>
-                    <tbody id="admin-menu-list" class="divide-y divide-gray-100"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <div id="category-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 class="text-xl font-bold text-gray-900 mb-4">Yeni Kategori Oluştur</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Kategori Adı</label>
-                    <input type="text" id="new-cat-name" placeholder="Örn: ÇİKOLATALI WAFFLE" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-black">
+            <div class="px-6 flex-1 overflow-y-auto pb-10">
+                <div class="mb-6">
+                    <h2 class="text-3xl font-serif font-bold text-dark leading-tight" id="modal-title">Ürün Adı</h2>
+                    <p class="text-2xl font-bold text-gold mt-2" id="modal-display-price">0 ₺</p>
                 </div>
-                <div class="flex justify-end gap-2 pt-2">
-                    <button onclick="closeModal('category-modal')" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">İptal</button>
-                    <button onclick="saveCategory()" class="bg-black text-white text-sm font-bold px-5 py-2 rounded-xl hover:bg-gray-800">Kategoriyi Ekle</button>
+                <div id="size-options-wrapper" class="hidden mb-8">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Porsiyon Seçimi</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="size" value="0" class="size-radio hidden" onchange="updatePrice(0)" checked>
+                            <div class="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl bg-gray-50 transition-all h-full">
+                                <span class="font-bold text-sm">Küçük Boy</span>
+                                <span class="text-xs opacity-70 mt-1">Standart</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer relative">
+                            <input type="radio" name="size" value="30" class="size-radio hidden" onchange="updatePrice(30)">
+                            <div class="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl bg-gray-50 transition-all h-full">
+                                <span class="font-bold text-sm">Büyük Boy</span>
+                                <span class="text-xs opacity-70 mt-1">+30 ₺</span>
+                            </div>
+                        </label>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="product-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <h3 class="text-xl font-bold text-gray-900 mb-4">Yeni Ürün Ekle</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Ürün Adı *</label>
-                    <input type="text" id="p-name" placeholder="Örn: Klasik Waffle" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-black">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Kategori Seçimi *</label>
-                    <select id="p-category" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-black bg-white"></select>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Fiyat (TL) *</label>
-                    <input type="number" id="p-price" placeholder="Örn: 150" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-black">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">İçindekiler (Virgülle ayırın)</label>
-                    <input type="text" id="p-ingredients" placeholder="Örn: Çilek, Muz, Sütlü Çikolata" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-black">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Ürün Görseli *</label>
-                    <input type="file" id="p-file" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-black hover:file:bg-gray-200 cursor-pointer">
-                </div>
-                <div class="flex justify-end gap-2 pt-4 border-t border-gray-100">
-                    <button onclick="closeModal('product-modal')" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">İptal</button>
-                    <button id="submit-product-btn" onclick="saveProduct()" class="bg-black text-white text-sm font-bold px-5 py-2 rounded-xl hover:bg-gray-800">Ürünü Kaydet</button>
+                <div id="ingredients-wrapper" class="hidden mb-6">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">İçindekiler</h3>
+                    <div id="modal-ingredients" class="space-y-2"></div>
                 </div>
             </div>
         </div>
@@ -126,279 +110,180 @@
     <script>
         const SUPABASE_URL = 'https://zgdmnhjlxizkyecdfmuv.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnZG1uaGpseGl6a3llY2RmbXV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjUyMzcsImV4cCI6MjA5NzMwMTIzN30.L-KV8VKywt9fOF5jLDQFYOCX2kCEDrtXHRZFEBk2ARk';
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
-
-        let categoriesList = [];
-        let allProductsRaw = [];
-
-        window.addEventListener('DOMContentLoaded', () => {
-            const savedPassword = localStorage.getItem('babywaffle_admin_pass');
-            if (savedPassword) {
-                document.getElementById('admin-password').value = savedPassword;
-                document.getElementById('remember-me').checked = true;
-                checkPassword(true);
-            }
+        
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: { persistSession: false }
         });
 
-        async function checkPassword(isAuto = false) {
-            const inputPassword = document.getElementById('admin-password').value;
-            const errorText = document.getElementById('login-error');
-            const rememberMe = document.getElementById('remember-me').checked;
+        let currentBasePrice = 0;
+        let MENU = {};
 
-            try {
-                const { data, error } = await supabaseClient.from('admin_settings').select('value').eq('key', 'admin_password').single();
-                if (error) throw error;
-
-                if (data && data.value === inputPassword) {
-                    errorText.classList.add('hidden');
-                    document.getElementById('login-screen').classList.add('hidden');
-                    document.getElementById('panel-screen').classList.remove('hidden');
-                    if (rememberMe) localStorage.setItem('babywaffle_admin_pass', inputPassword);
-                    else localStorage.removeItem('babywaffle_admin_pass');
-                    fetchAdminMenu();
-                } else {
-                    errorText.classList.remove('hidden');
-                    if(isAuto) logout();
-                }
-            } catch (err) { errorText.classList.remove('hidden'); }
+        function generateSafeId(string) {
+            return 'cat-' + btoa(encodeURIComponent(string)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
         }
 
-        async function changeAdminPassword() {
-            const newPass = prompt("Lütfen yeni yönetim paneli şifresini giriniz:");
-            if (!newPass) return;
-            const newPassTrimmed = newPass.trim();
-            if (newPassTrimmed.length < 4) return alert("Şifre en az 4 karakter olmalıdır!");
+        async function fetchMenuFromSupabase() {
             try {
-                await supabaseClient.from('admin_settings').update({ value: newPassTrimmed }).eq('key', 'admin_password');
-                alert("Şifre değiştirildi! Çıkış yapılıyor.");
-                logout();
-            } catch (err) { alert("Hata: " + err.message); }
-        }
-
-        async function fetchAdminMenu() {
-            try {
+                // Ürünleri kendi içlerindeki sort_order değerine göre küçükten büyüğe sıralı çekiyoruz
                 const { data: itemsData, error: itemsError } = await supabaseClient
                     .from('menu_items')
                     .select('*')
-                    .order('category', { ascending: true })
                     .order('sort_order', { ascending: true });
 
                 if (itemsError) throw itemsError;
-                allProductsRaw = itemsData;
+                if (!itemsData || itemsData.length === 0) {
+                    document.getElementById('loading').innerHTML = `<p class="text-gray-500 text-sm">Veritabanında ürün bulunamadı.</p>`;
+                    return;
+                }
 
-                document.getElementById('total-count').innerText = `Toplam ${itemsData.length} adet kayıtlı ürün bulunuyor.`;
+                // Kategorileri panel sıralamasına göre çekiyoruz
+                const { data: orderData } = await supabaseClient
+                    .from('category_order')
+                    .select('*')
+                    .order('sort_order', { ascending: true });
 
                 const uniqueCats = [...new Set(itemsData.map(item => item.category))];
-                const { data: orderData } = await supabaseClient.from('category_order').select('*').order('sort_order', { ascending: true });
-                
-                let sortedCats = [];
+
+                let sortedCategories = [];
                 if (orderData && orderData.length > 0) {
-                    orderData.forEach(o => { if (uniqueCats.includes(o.name)) sortedCats.push(o.name); });
-                    uniqueCats.forEach(c => { if (!sortedCats.includes(c)) sortedCats.push(c); });
-                } else { sortedCats = uniqueCats; }
-
-                categoriesList = sortedCats;
-                updateCategorySelects();
-                renderCategoryOrderUI();
-                renderProductsTableUI();
-            } catch (err) { alert("Veriler yüklenirken hata oldu."); }
-        }
-
-        function renderProductsTableUI() {
-            const tbody = document.getElementById('admin-menu-list');
-            tbody.innerHTML = '';
-
-            categoriesList.forEach(cat => {
-                const catItems = allProductsRaw.filter(item => item.category === cat);
-                catItems.forEach((item, innerIndex) => {
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-gray-50/50 transition">
-                            <td class="p-4 pl-6 font-bold text-gray-400 text-sm">
-                                <div class="flex items-center gap-1">
-                                    <span>${innerIndex + 1}</span>
-                                    <div class="flex flex-col text-[9px] ml-2">
-                                        <button onclick="moveProductItem(${item.id}, ${innerIndex}, -1, '${cat}')" class="hover:text-black">▲</button>
-                                        <button onclick="moveProductItem(${item.id}, ${innerIndex}, 1, '${cat}')" class="hover:text-black">▼</button>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="p-4"><img src="${item.img}" class="w-12 h-12 rounded-lg object-cover bg-gray-100" onerror="this.src='https://placehold.co/50x50?text=Yok'"></td>
-                            <td class="p-4 font-semibold text-gray-800">${item.name}</td>
-                            <td class="p-4"><span class="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md text-xs font-medium">${item.category}</span></td>
-                            <td class="p-4 font-bold text-gray-900">${item.price} ₺</td>
-                            <td class="p-4 pr-6 text-right space-x-2">
-                                <button onclick="updatePrice(${item.id}, '${item.name}', ${item.price})" class="text-xs font-bold text-gray-700 border border-gray-200 bg-white hover:bg-black hover:text-white px-3 py-1.5 rounded-lg transition">Fiyat Değiştir</button>
-                                <button onclick="deleteProduct(${item.id}, '${item.name}')" class="text-xs font-bold text-red-600 border border-red-100 bg-red-50 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded-lg transition">Sil</button>
-                            </td>
-                        </tr>`;
-                });
-            });
-        }
-
-        async function moveProductItem(id, currentIndex, direction, categoryName) {
-            const catItems = allProductsRaw.filter(item => item.category === categoryName);
-            const targetIndex = currentIndex + direction;
-            if (targetIndex < 0 || targetIndex >= catItems.length) return;
-
-            const currentObj = catItems[currentIndex];
-            const targetObj = catItems[targetIndex];
-
-            try {
-                await supabaseClient.from('menu_items').update({ sort_order: targetIndex + 1 }).eq('id', currentObj.id);
-                await supabaseClient.from('menu_items').update({ sort_order: currentIndex + 1 }).eq('id', targetObj.id);
-                
-                const tempIndex = allProductsRaw.findIndex(p => p.id === currentObj.id);
-                const tempTargetIndex = allProductsRaw.findIndex(p => p.id === targetObj.id);
-                allProductsRaw[tempIndex].sort_order = targetIndex + 1;
-                allProductsRaw[tempTargetIndex].sort_order = currentIndex + 1;
-                
-                allProductsRaw.sort((a, b) => a.sort_order - b.sort_order);
-                renderProductsTableUI();
-            } catch (err) { console.error(err); }
-        }
-
-        function renderCategoryOrderUI() {
-            const container = document.getElementById('category-order-list');
-            container.innerHTML = '';
-            categoriesList.forEach((cat, index) => {
-                container.innerHTML += `
-                    <div class="flex items-center bg-gray-100 border border-gray-200 pl-4 pr-2 py-1.5 rounded-xl gap-2 shadow-sm">
-                        <span class="text-sm font-bold text-gray-700">${index + 1}. ${cat}</span>
-                        <div class="flex gap-1">
-                            <button onclick="moveCategoryUI(${index}, -1)" class="bg-white hover:bg-black hover:text-white border border-gray-300 text-xs font-bold w-7 h-7 rounded-lg flex items-center justify-center transition">◀</button>
-                            <button onclick="moveCategoryUI(${index}, 1)" class="bg-white hover:bg-black hover:text-white border border-gray-300 text-xs font-bold w-7 h-7 rounded-lg flex items-center justify-center transition">▶</button>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        function moveCategoryUI(index, direction) {
-            const targetIndex = index + direction;
-            if (targetIndex < 0 || targetIndex >= categoriesList.length) return;
-            const temp = categoriesList[index];
-            categoriesList[index] = categoriesList[targetIndex];
-            categoriesList[targetIndex] = temp;
-            
-            renderCategoryOrderUI();
-            renderProductsTableUI();
-        }
-
-        async function saveCategoryOrderToSupabase() {
-            const btn = document.getElementById('save-order-btn');
-            btn.disabled = true;
-            btn.innerText = "⏳ Kaydediliyor...";
-            try {
-                for (let i = 0; i < categoriesList.length; i++) {
-                    await supabaseClient.from('category_order').upsert({ name: categoriesList[i], sort_order: i }, { onConflict: 'name' });
+                    orderData.forEach(o => {
+                        if (uniqueCats.includes(o.name)) sortedCategories.push(o.name);
+                    });
+                    uniqueCats.forEach(c => {
+                        if (!sortedCategories.includes(c)) sortedCategories.push(c);
+                    });
+                } else {
+                    sortedCategories = uniqueCats;
                 }
-                alert("🎉 Kategori sıralaması başarıyla kaydedildi ve QR Menüye yansıtıldı!");
+
+                MENU = {};
+                sortedCategories.forEach(cat => {
+                    const catItems = itemsData.filter(item => item.category === cat);
+                    if (catItems.length > 0) {
+                        MENU[cat] = catItems.map(item => ({
+                            name: item.name,
+                            price: item.price,
+                            img: item.img,
+                            ingredients: item.ingredients || []
+                        }));
+                    }
+                });
+
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('menu-content').classList.remove('hidden');
+                
+                renderMenu();
             } catch (err) {
-                alert("Hata oluştu: " + err.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "💾 Sıralamayı Kaydet";
+                console.error("Hata ayrıntısı:", err);
+                document.getElementById('loading').innerHTML = `<p class="text-red-500 text-sm">Bağlantı hatası. Lütfen sayfayı yenileyin.</p>`;
             }
         }
 
-        function updateCategorySelects() {
-            const select = document.getElementById('p-category');
-            select.innerHTML = '';
-            categoriesList.forEach(cat => { select.innerHTML += `<option value="${cat}">${cat}</option>`; });
-        }
+        function renderMenu() {
+            const nav = document.getElementById('category-nav');
+            const content = document.getElementById('menu-content');
+            nav.innerHTML = ''; content.innerHTML = '';
 
-        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
-        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-
-        function saveCategory() {
-            const name = document.getElementById('new-cat-name').value.trim().toUpperCase();
-            if(!name) return alert("Kategori adı boş olamaz!");
-            if(categoriesList.includes(name)) return alert("Bu kategori zaten mevcut!");
-            categoriesList.push(name);
-            updateCategorySelects();
-            renderCategoryOrderUI();
-            document.getElementById('p-category').value = name;
-            document.getElementById('new-cat-name').value = '';
-            closeModal('category-modal');
-        }
-
-        // DÜZELTİLEN YER: Görsel linkini eksiksiz çeken ve Türkçe karakter hatasını önleyen fonksiyon
-        async function saveProduct() {
-            const name = document.getElementById('p-name').value.trim();
-            const category = document.getElementById('p-category').value;
-            const price = parseInt(document.getElementById('p-price').value);
-            const ingredientsInput = document.getElementById('p-ingredients').value;
-            const fileInput = document.getElementById('p-file');
-
-            if(!name || !category || isNaN(price) || fileInput.files.length === 0) return alert("Alanları doldurun!");
-
-            const btn = document.getElementById('submit-product-btn');
-            btn.disabled = true; btn.innerText = "Yükleniyor...";
-
-            try {
-                const file = fileInput.files[0];
-                const fileExt = file.name.split('.').pop().toLowerCase();
-                // Türkçe karakterleri ve boşlukları temizleyip güvenli dosya adı üretiyoruz
-                const fileName = `${Date.now()}.${fileExt}`;
+            for (const [cat, items] of Object.entries(MENU)) {
+                const catId = generateSafeId(cat);
+                nav.innerHTML += `<button onclick="scrollToCat('${catId}')" id="btn-${catId}" class="px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap bg-white border border-gray-200 text-gray-500 hover:bg-black hover:text-white transition-all">${cat}</button>`;
                 
-                // Resmi Storage'a yükleme
-                const { error: uploadError } = await supabaseClient.storage.from('menu-images').upload(fileName, file);
-                if (uploadError) throw uploadError;
+                const isDrinkCategory = cat.includes("SICAK") || cat.includes("SOĞUK");
+                const inspectBadgeHtml = isDrinkCategory ? '' : '<div class="text-xs text-gray-400 font-medium border border-gray-200 rounded-lg px-2 py-1">İncele</div>';
 
-                // DÜZELTME: Linki çekme yapısı v2 sürümüne uygun hale getirildi (data.publicUrl)
-                const { data: urlData } = supabaseClient.storage.from('menu-images').getPublicUrl(fileName);
-                if (!urlData || !urlData.publicUrl) throw new Error("Görsel bağlantısı oluşturulamadı.");
+                let itemsHtml = '';
+                items.forEach((item, i) => {
+                    const delay = i * 20;
+                    const itemData = encodeURIComponent(JSON.stringify(item));
+                    itemsHtml += `
+                        <div onclick="openProductModal('${itemData}', '${cat.replace(/'/g, "\\'")}')" class="item-card flex gap-5 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 animate-fade-up cursor-pointer transition-transform" style="animation-delay: ${delay}ms">
+                            <img src="${item.img}" class="w-24 h-24 rounded-xl object-cover bg-gray-100 flex-shrink-0 item-image" onerror="this.src='https://placehold.co/100x100?text=BabyWaffle'">
+                            <div class="flex flex-col justify-between flex-1 py-1">
+                                <div>
+                                    <h3 class="font-serif text-lg font-bold leading-tight text-dark">${item.name}</h3>
+                                    <p class="text-xs text-gray-400 mt-1 line-clamp-1">${item.ingredients ? item.ingredients.join(', ') : ''}</p>
+                                </div>
+                                <div class="flex justify-between items-end mt-2">
+                                    <span class="font-sans font-bold text-lg text-dark">${item.price} ₺</span>
+                                    ${inspectBadgeHtml}
+                                </div>
+                            </div>
+                        </div>`;
+                });
                 
-                const finalPublicUrl = urlData.publicUrl;
-                const ingredients = ingredientsInput ? ingredientsInput.split(',').map(i => i.trim()) : [];
-
-                const catItems = allProductsRaw.filter(item => item.category === category);
-                const nextOrder = catItems.length + 1;
-
-                // Veritabanına kesinleşen publicUrl'i yazıyoruz
-                await supabaseClient.from('menu_items').insert([{ name, category, price, img: finalPublicUrl, ingredients, sort_order: nextOrder }]);
-                await supabaseClient.from('category_order').upsert({ name: category, sort_order: categoriesList.indexOf(category) }, { onConflict: 'name' });
-
-                alert("Ürün başarıyla eklendi ve görseli yüklendi!");
-                document.getElementById('p-name').value = ''; document.getElementById('p-price').value = ''; fileInput.value = '';
-                closeModal('product-modal');
-                fetchAdminMenu();
-            } catch (err) { 
-                alert("Yükleme Hatası: " + err.message); 
-            } finally { 
-                btn.disabled = false; 
-                btn.innerText = "Ürünü Kaydet"; 
+                content.innerHTML += `<div id="${catId}" class="scroll-mt-32 mb-10"><h2 class="font-serif text-3xl font-bold text-dark mb-6 pl-2 border-l-4 border-black">${cat}</h2><div class="grid gap-4 md:grid-cols-2">${itemsHtml}</div></div>`;
             }
+            feather.replace();
+            if(document.querySelector('#category-nav button')) document.querySelector('#category-nav button').click();
         }
 
-        async function updatePrice(id, name, currentPrice) {
-            const newPrice = prompt(`"${name}" için yeni fiyat:`, currentPrice);
-            if (newPrice === null) return;
-            const parsed = parseInt(newPrice);
-            if (isNaN(parsed)) return;
-            try {
-                await supabaseClient.from('menu_items').update({ price: parsed }).eq('id', id);
-                const idx = allProductsRaw.findIndex(p => p.id === id);
-                if(idx !== -1) allProductsRaw[idx].price = parsed;
-                renderProductsTableUI();
-            } catch (err) { alert("Hata oluştu."); }
+        function openProductModal(itemData, categoryName) {
+            const item = JSON.parse(decodeURIComponent(itemData));
+            currentBasePrice = item.price;
+            
+            document.getElementById('modal-img').src = item.img;
+            document.getElementById('modal-title').innerText = item.name;
+            document.getElementById('modal-display-price').innerText = item.price + " ₺";
+            
+            const sizeWrapper = document.getElementById('size-options-wrapper');
+            const radios = document.getElementsByName('size');
+            
+            radios[0].checked = true;
+            updatePrice(0); 
+
+            if (categoryName.includes('WAFFLE') && !categoryName.includes('CUP')) {
+                sizeWrapper.classList.remove('hidden');
+            } else {
+                sizeWrapper.classList.add('hidden');
+            }
+
+            const ingContainer = document.getElementById('modal-ingredients');
+            const ingWrapper = document.getElementById('ingredients-wrapper');
+            ingContainer.innerHTML = '';
+            
+            if (item.ingredients && item.ingredients.length > 0) {
+                ingWrapper.classList.remove('hidden');
+                item.ingredients.forEach(ing => {
+                    ingContainer.innerHTML += `
+                        <div class="flex items-center p-3 rounded-xl border border-gray-100 bg-gray-50">
+                            <div class="w-2 h-2 rounded-full bg-gold mr-3"></div>
+                            <span class="font-medium text-sm text-gray-700">${ing}</span>
+                        </div>`;
+                });
+            } else {
+                ingWrapper.classList.add('hidden');
+            }
+            
+            document.getElementById('product-modal').classList.remove('hidden');
         }
 
-        async function deleteProduct(id, name) {
-            if(!confirm(`"${name}" silinsin mi?`)) return;
-            try {
-                await supabaseClient.from('menu_items').delete().eq('id', id);
-                allProductsRaw = allProductsRaw.filter(p => p.id !== id);
-                renderProductsTableUI();
-            } catch (err) { alert("Hata oluştu."); }
+        function updatePrice(extraPrice) {
+            const finalPrice = currentBasePrice + parseInt(extraPrice);
+            document.getElementById('modal-display-price').innerText = finalPrice + " ₺";
         }
 
-        function logout() {
-            localStorage.removeItem('babywaffle_admin_pass');
-            document.getElementById('admin-password').value = '';
-            document.getElementById('remember-me').checked = false;
-            document.getElementById('panel-screen').classList.add('hidden');
-            document.getElementById('login-screen').classList.remove('hidden');
+        function closeProductModal() { 
+            document.getElementById('product-modal').classList.add('hidden'); 
         }
+
+        window.scrollToCat = (id) => { 
+            const el = document.getElementById(id); 
+            if(el) { 
+                document.querySelectorAll('#category-nav button').forEach(b => { 
+                    b.classList.remove('bg-black', 'text-white', 'border-black'); 
+                    b.classList.add('bg-white', 'text-gray-500', 'border-gray-200'); 
+                }); 
+                const btn = document.getElementById(`btn-${id}`); 
+                if(btn) {
+                    btn.classList.remove('bg-white', 'text-gray-500', 'border-gray-200'); 
+                    btn.classList.add('bg-black', 'text-white', 'border-black'); 
+                }
+                const y = el.getBoundingClientRect().top + window.pageYOffset - 120; 
+                window.scrollTo({top: y, behavior: 'smooth'}); 
+            } 
+        };
+
+        fetchMenuFromSupabase();
     </script>
 </body>
 </html>
