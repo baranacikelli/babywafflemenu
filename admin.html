@@ -18,6 +18,12 @@
                     <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Yönetici Şifresi</label>
                     <input type="password" id="admin-password" placeholder="••••••••" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-black transition">
                 </div>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" id="remember-me" class="w-4 h-4 text-black border-gray-300 rounded focus:ring-black cursor-pointer">
+                    <label for="remember-me" class="ml-2 text-sm text-gray-600 select-none cursor-pointer">Beni Hatırla</label>
+                </div>
+
                 <p id="login-error" class="text-red-500 text-xs hidden text-center font-medium">Hatalı şifre girdiniz veya bağlantı hatası!</p>
                 <button onclick="checkPassword()" class="w-full bg-black text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition shadow-lg">Giriş Yap</button>
             </div>
@@ -112,10 +118,20 @@
 
         let categoriesList = [];
 
-        // HACK KORUMASI: Şifreyi veritabanından çekip kontrol ediyoruz
-        async function checkPassword() {
+        // OTOMATİK GİRİŞ KONTROLÜ (Beni hatırla işaretlendiyse)
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedPassword = localStorage.getItem('babywaffle_admin_pass');
+            if (savedPassword) {
+                document.getElementById('admin-password').value = savedPassword;
+                document.getElementById('remember-me').checked = true;
+                checkPassword(true); // Otomatik doğrula
+            }
+        });
+
+        async function checkPassword(isAuto = false) {
             const inputPassword = document.getElementById('admin-password').value;
             const errorText = document.getElementById('login-error');
+            const rememberMe = document.getElementById('remember-me').checked;
 
             try {
                 const { data, error } = await supabaseClient
@@ -130,9 +146,18 @@
                     errorText.classList.add('hidden');
                     document.getElementById('login-screen').classList.add('hidden');
                     document.getElementById('panel-screen').classList.remove('hidden');
+                    
+                    // Beni hatırla işaretlendiyse şifreyi kaydet
+                    if (rememberMe) {
+                        localStorage.setItem('babywaffle_admin_pass', inputPassword);
+                    } else {
+                        localStorage.removeItem('babywaffle_admin_pass');
+                    }
+
                     fetchAdminMenu();
                 } else {
                     errorText.classList.remove('hidden');
+                    if(isAuto) logout(); // Kayıtlı şifre artık geçersizse temizle
                 }
             } catch (err) {
                 console.error(err);
@@ -140,17 +165,14 @@
             }
         }
 
-        // CANLI GÜVENLİ ŞİFRE DEĞİŞTİRME FONKSİYONU
         async function changeAdminPassword() {
-            const newPass = prompt("Lütfen yeni yönetim paneli şifresini giriniz:\n(Unutmayacağınız güvenli bir şifre seçin)");
+            const newPass = prompt("Lütfen yeni yönetim paneli şifresini giriniz:");
             if (!newPass) return;
             
             const newPassTrimmed = newPass.trim();
-            if (newPassTrimmed.length < 4) {
-                return alert("Şifre en az 4 karakterden oluşmalıdır!");
-            }
+            if (newPassTrimmed.length < 4) return alert("Şifre en az 4 karakter olmalıdır!");
 
-            if (!confirm("Şifreyi değiştirmek istediğinize emin misiniz? Eski şifre anında iptal edilecektir.")) return;
+            if (!confirm("Şifreyi değiştirmek istediğinize emin misiniz?")) return;
 
             try {
                 const { error } = await supabaseClient
@@ -160,11 +182,10 @@
 
                 if (error) throw error;
 
-                alert("Şifre başarıyla değiştirildi! Yeni şifre artık aktif. Güvenlik için sistemden çıkış yapılıyor.");
+                alert("Şifre değiştirildi! Güvenlik için sistemden çıkış yapılıyor.");
                 logout();
             } catch (err) {
-                console.error(err);
-                alert("Şifre değiştirilirken bir hata oluştu: " + err.message);
+                alert("Hata: " + err.message);
             }
         }
 
@@ -276,7 +297,9 @@
         }
 
         function logout() {
+            localStorage.removeItem('babywaffle_admin_pass'); // Hafızayı temizle
             document.getElementById('admin-password').value = '';
+            document.getElementById('remember-me').checked = false;
             document.getElementById('panel-screen').classList.add('hidden');
             document.getElementById('login-screen').classList.remove('hidden');
         }
