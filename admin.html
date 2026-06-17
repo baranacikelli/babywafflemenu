@@ -144,7 +144,7 @@
     </div>
 
     <div id="delete-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center">
+        <div class="bg-white rounded-2xl max-sm w-full p-6 shadow-2xl text-center">
             <div class="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">⚠️</div>
             <h3 class="text-xl font-bold text-gray-900 mb-2">Ürünü Kaldır</h3>
             <p id="delete-modal-text" class="text-sm text-gray-500 mb-6">Bu ürünü menüden silmek istediğinize emin misiniz?</p>
@@ -401,7 +401,7 @@
             showToast("Kategori listeye eklendi.");
         }
 
-        // TAM ENTEGRE - SORGULARI SIRALI VE GÜVENLİ YÜRÜTEN YENİ ÜRÜN MOTORU
+        // HATA GÖSTERİMİ AKTİF EDİLMİŞ GÜVENLİ KAYIT MOTORU
         async function saveProduct() {
             const pId = document.getElementById('p-id').value;
             const name = document.getElementById('p-name').value.trim();
@@ -425,12 +425,15 @@
                     const fileExt = file.name.split('.').pop().toLowerCase();
                     const fileName = `${Date.now()}.${fileExt}`;
                     
-                    // Supabase Storage'a doğrudan ham dosya yüklemesi gönderiyoruz
                     const { data: uploadData, error: uploadError } = await supabaseClient.storage
                         .from('menu-images')
                         .upload(fileName, file, { cacheControl: '3600', upsert: true });
 
-                    // Link oluşturma işlemini her halükarda doğrudan adrese bağlayarak çözüyoruz
+                    if (uploadError) {
+                        // Hatayı gizlemek yerine ekranda ne olduğunu net olarak gösteriyoruz
+                        throw new Error("Görsel Yükleme Hatası: " + uploadError.message);
+                    }
+
                     finalPublicUrl = `${SUPABASE_URL}/storage/v1/object/public/menu-images/${fileName}`;
                 }
 
@@ -456,8 +459,9 @@
                 closeModal('product-modal');
                 fetchAdminMenu();
             } catch (err) { 
-                showToast("Sistem senkronizasyon hatası: " + err.message, "error");
-            } finally { 
+                // Gerçek hata mesajını kullanıcıya kırmızı bildirimle basar
+                showToast(err.message, "error");
+            } finaly { 
                 btn.disabled = false; 
                 btn.innerText = "Ürünü Kaydet"; 
             }
