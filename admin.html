@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Baby Waffle - Güvenli Yönetim Paneli</title>
+    <title>Baby Waffle - Gelişmiş Yönetim Paneli</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -18,12 +18,10 @@
                     <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Yönetici Şifresi</label>
                     <input type="password" id="admin-password" placeholder="••••••••" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-black transition">
                 </div>
-                
                 <div class="flex items-center">
                     <input type="checkbox" id="remember-me" class="w-4 h-4 text-black border-gray-300 rounded focus:ring-black cursor-pointer">
                     <label for="remember-me" class="ml-2 text-sm text-gray-600 select-none cursor-pointer">Beni Hatırla</label>
                 </div>
-
                 <p id="login-error" class="text-red-500 text-xs hidden text-center font-medium">Hatalı şifre girdiniz veya bağlantı hatası!</p>
                 <button onclick="checkPassword()" class="w-full bg-black text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition shadow-lg">Giriş Yap</button>
             </div>
@@ -32,7 +30,7 @@
 
     <div id="panel-screen" class="hidden max-w-5xl mx-auto px-4 py-10">
         
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
             <div>
                 <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Baby Waffle Menü Yönetimi</h1>
                 <p class="text-sm text-gray-500 mt-1" id="total-count">Yükleniyor...</p>
@@ -43,6 +41,13 @@
                 <button onclick="openModal('product-modal')" class="bg-black text-white font-bold px-5 py-3 rounded-xl text-sm hover:bg-gray-800 transition shadow-md">+ Yeni Ürün Ekle</button>
                 <button onclick="logout()" class="bg-red-50 text-red-600 font-bold px-4 py-3 rounded-xl text-sm hover:bg-red-100 transition">Çıkış</button>
             </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+            <h2 class="text-lg font-bold text-gray-800 mb-2">↔️ Kategori Sıralaması (Menüde Soldan Sağa Dizilim)</h2>
+            <p class="text-xs text-gray-400 mb-4">Müşteri menüsünde kategorilerin hangi sırayla görüneceğini butonları kullanarak ayarlayabilirsiniz.</p>
+            <div id="category-order-list" class="flex flex-wrap gap-3">
+                </div>
         </div>
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -118,13 +123,12 @@
 
         let categoriesList = [];
 
-        // OTOMATİK GİRİŞ KONTROLÜ (Beni hatırla işaretlendiyse)
         window.addEventListener('DOMContentLoaded', () => {
             const savedPassword = localStorage.getItem('babywaffle_admin_pass');
             if (savedPassword) {
                 document.getElementById('admin-password').value = savedPassword;
                 document.getElementById('remember-me').checked = true;
-                checkPassword(true); // Otomatik doğrula
+                checkPassword(true);
             }
         });
 
@@ -134,12 +138,7 @@
             const rememberMe = document.getElementById('remember-me').checked;
 
             try {
-                const { data, error } = await supabaseClient
-                    .from('admin_settings')
-                    .select('value')
-                    .eq('key', 'admin_password')
-                    .single();
-
+                const { data, error } = await supabaseClient.from('admin_settings').select('value').eq('key', 'admin_password').single();
                 if (error) throw error;
 
                 if (data && data.value === inputPassword) {
@@ -147,20 +146,15 @@
                     document.getElementById('login-screen').classList.add('hidden');
                     document.getElementById('panel-screen').classList.remove('hidden');
                     
-                    // Beni hatırla işaretlendiyse şifreyi kaydet
-                    if (rememberMe) {
-                        localStorage.setItem('babywaffle_admin_pass', inputPassword);
-                    } else {
-                        localStorage.removeItem('babywaffle_admin_pass');
-                    }
+                    if (rememberMe) localStorage.setItem('babywaffle_admin_pass', inputPassword);
+                    else localStorage.removeItem('babywaffle_admin_pass');
 
                     fetchAdminMenu();
                 } else {
                     errorText.classList.remove('hidden');
-                    if(isAuto) logout(); // Kayıtlı şifre artık geçersizse temizle
+                    if(isAuto) logout();
                 }
             } catch (err) {
-                console.error(err);
                 errorText.classList.remove('hidden');
             }
         }
@@ -168,41 +162,52 @@
         async function changeAdminPassword() {
             const newPass = prompt("Lütfen yeni yönetim paneli şifresini giriniz:");
             if (!newPass) return;
-            
             const newPassTrimmed = newPass.trim();
             if (newPassTrimmed.length < 4) return alert("Şifre en az 4 karakter olmalıdır!");
 
-            if (!confirm("Şifreyi değiştirmek istediğinize emin misiniz?")) return;
-
             try {
-                const { error } = await supabaseClient
-                    .from('admin_settings')
-                    .update({ value: newPassTrimmed })
-                    .eq('key', 'admin_password');
-
-                if (error) throw error;
-
-                alert("Şifre değiştirildi! Güvenlik için sistemden çıkış yapılıyor.");
+                await supabaseClient.from('admin_settings').update({ value: newPassTrimmed }).eq('key', 'admin_password');
+                alert("Şifre değiştirildi! Çıkış yapılıyor.");
                 logout();
-            } catch (err) {
-                alert("Hata: " + err.message);
-            }
+            } catch (err) { alert("Hata: " + err.message); }
         }
 
         async function fetchAdminMenu() {
             try {
-                const { data, error } = await supabaseClient.from('menu_items').select('*').order('id', { ascending: false });
-                if (error) throw error;
+                // Ürünleri çek
+                const { data: itemsData, error: itemsError } = await supabaseClient.from('menu_items').select('*').order('id', { ascending: false });
+                if (itemsError) throw itemsError;
 
                 const tbody = document.getElementById('admin-menu-list');
-                document.getElementById('total-count').innerText = `Toplam ${data.length} adet kayıtlı ürün bulunuyor.`;
+                document.getElementById('total-count').innerText = `Toplam ${itemsData.length} adet kayıtlı ürün bulunuyor.`;
                 tbody.innerHTML = '';
 
-                const uniqueCats = [...new Set(data.map(item => item.category))];
-                categoriesList = uniqueCats;
-                updateCategorySelects();
+                // Menüdeki mevcut benzersiz kategorileri bul
+                const uniqueCats = [...new Set(itemsData.map(item => item.category))];
+                
+                // Sıralama tablosundaki kayıtları çek
+                const { data: orderData } = await supabaseClient.from('category_order').select('*').order('sort_order', { ascending: true });
+                
+                // Sıralama tablosundaki sıraya göre listeyi senkronize et
+                let sortedCats = [];
+                if (orderData && orderData.length > 0) {
+                    // Önce veritabanında sırası olanları ekle
+                    orderData.forEach(o => {
+                        if (uniqueCats.includes(o.name)) sortedCats.push(o.name);
+                    });
+                    // Veritabanında henüz sırası olmayan yeni kategorileri de sona ekle
+                    uniqueCats.forEach(c => {
+                        if (!sortedCats.includes(c)) sortedCats.push(c);
+                    });
+                } else {
+                    sortedCats = uniqueCats;
+                }
 
-                data.forEach(item => {
+                categoriesList = sortedCats;
+                updateCategorySelects();
+                renderCategoryOrderUI();
+
+                itemsData.forEach(item => {
                     tbody.innerHTML += `
                         <tr class="hover:bg-gray-50/50 transition">
                             <td class="p-4 pl-6"><img src="${item.img}" class="w-12 h-12 rounded-lg object-cover bg-gray-100" onerror="this.src='https://placehold.co/50x50?text=Yok'"></td>
@@ -216,7 +221,7 @@
                         </tr>`;
                 });
             } catch (err) {
-                alert("Veriler yüklenirken hata oluştu.");
+                alert("Veriler yüklenirken hata oldu.");
             }
         }
 
@@ -224,6 +229,47 @@
             const select = document.getElementById('p-category');
             select.innerHTML = '';
             categoriesList.forEach(cat => { select.innerHTML += `<option value="${cat}">${cat}</option>`; });
+        }
+
+        // SIRALAMA ARA YÜZÜNÜ ÇİZER
+        function renderCategoryOrderUI() {
+            const container = document.getElementById('category-order-list');
+            container.innerHTML = '';
+            
+            categoriesList.forEach((cat, index) => {
+                container.innerHTML += `
+                    <div class="flex items-center bg-gray-100 border border-gray-200 pl-4 pr-2 py-1.5 rounded-xl gap-2 shadow-sm">
+                        <span class="text-sm font-bold text-gray-700">${index + 1}. ${cat}</span>
+                        <div class="flex gap-1">
+                            <button onclick="moveCategory(${index}, -1)" class="bg-white hover:bg-black hover:text-white border border-gray-300 text-xs font-bold w-7 h-7 rounded-lg flex items-center justify-center transition">◀</button>
+                            <button onclick="moveCategory(${index}, 1)" class="bg-white hover:bg-black hover:text-white border border-gray-300 text-xs font-bold w-7 h-7 rounded-lg flex items-center justify-center transition">▶</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        // KATEGORİYİ SAĞA VEYA SOLA TAŞIR VE SUPABASE'E KAYDEDER
+        async function moveCategory(index, direction) {
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= categoriesList.length) return; // Sınır dışı
+
+            // Dizi içinde elemanların yerini değiştir
+            const temp = categoriesList[index];
+            categoriesList[index] = categoriesList[targetIndex];
+            categoriesList[targetIndex] = temp;
+
+            renderCategoryOrderUI();
+
+            // Sıralamayı Supabase'e kaydet
+            try {
+                for (let i = 0; i < categoriesList.length; i++) {
+                    await supabaseClient
+                        .from('category_order')
+                        .upsert({ name: categoriesList[i], sort_order: i }, { onConflict: 'name' });
+                }
+            } catch (err) {
+                console.error("Sıralama kaydedilemedi:", err);
+            }
         }
 
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -235,6 +281,7 @@
             if(categoriesList.includes(name)) return alert("Bu kategori zaten mevcut!");
             categoriesList.push(name);
             updateCategorySelects();
+            renderCategoryOrderUI();
             document.getElementById('p-category').value = name;
             document.getElementById('new-cat-name').value = '';
             closeModal('category-modal');
@@ -247,7 +294,7 @@
             const ingredientsInput = document.getElementById('p-ingredients').value;
             const fileInput = document.getElementById('p-file');
 
-            if(!name || !category || isNaN(price) || fileInput.files.length === 0) return alert("Lütfen gerekli alanları doldurun!");
+            if(!name || !category || isNaN(price) || fileInput.files.length === 0) return alert("Alanları doldurun!");
 
             const btn = document.getElementById('submit-product-btn');
             btn.disabled = true; btn.innerText = "Yükleniyor...";
@@ -257,24 +304,21 @@
                 const fileExt = file.name.split('.').pop();
                 const fileName = `${Date.now()}.${fileExt}`;
                 
-                const { error: uploadError } = await supabaseClient.storage.from('menu-images').upload(fileName, file);
-                if (uploadError) throw uploadError;
-
+                await supabaseClient.storage.from('menu-images').upload(fileName, file);
                 const { data: urlData } = supabaseClient.storage.from('menu-images').getPublicUrl(fileName);
                 const ingredients = ingredientsInput ? ingredientsInput.split(',').map(i => i.trim()) : [];
 
-                const { error: insertError } = await supabaseClient.from('menu_items').insert([{ name, category, price, img: urlData.publicUrl, ingredients }]);
-                if (insertError) throw insertError;
+                await supabaseClient.from('menu_items').insert([{ name, category, price, img: urlData.publicUrl, ingredients }]);
+                
+                // Kategorinin sırasını veritabanına da peşinen ekle
+                await supabaseClient.from('category_order').upsert({ name: category, sort_order: categoriesList.indexOf(category) }, { onConflict: 'name' });
 
                 alert("Ürün eklendi!");
                 document.getElementById('p-name').value = ''; document.getElementById('p-price').value = ''; fileInput.value = '';
                 closeModal('product-modal');
                 fetchAdminMenu();
-            } catch (err) {
-                alert("Hata: " + err.message);
-            } finally {
-                btn.disabled = false; btn.innerText = "Ürünü Kaydet";
-            }
+            } catch (err) { alert("Hata: " + err.message); }
+            finally { btn.disabled = false; btn.innerText = "Ürünü Kaydet"; }
         }
 
         async function updatePrice(id, name, currentPrice) {
@@ -297,7 +341,7 @@
         }
 
         function logout() {
-            localStorage.removeItem('babywaffle_admin_pass'); // Hafızayı temizle
+            localStorage.removeItem('babywaffle_admin_pass');
             document.getElementById('admin-password').value = '';
             document.getElementById('remember-me').checked = false;
             document.getElementById('panel-screen').classList.add('hidden');
