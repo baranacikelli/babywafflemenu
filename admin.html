@@ -44,10 +44,16 @@
         </div>
 
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
-            <h2 class="text-lg font-bold text-gray-800 mb-2">↔️ Kategori Sıralaması (Menüde Soldan Sağa Dizilim)</h2>
-            <p class="text-xs text-gray-400 mb-4">Müşteri menüsünde kategorilerin hangi sırayla görüneceğini butonları kullanarak ayarlayabilirsiniz.</p>
-            <div id="category-order-list" class="flex flex-wrap gap-3">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800">↔️ Kategori Sıralaması (Menüde Soldan Sağa Dizilim)</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Kategorileri butonlarla dizin ve ardından mutlaka "Sıralamayı Kaydet" butonuna basın.</p>
                 </div>
+                <button id="save-order-btn" onclick="saveCategoryOrderToSupabase()" class="w-full md:w-auto bg-green-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-green-700 transition shadow-md shadow-green-600/10 flex items-center justify-center gap-2">
+                    <span>💾 Sıralamayı Kaydet</span>
+                </button>
+            </div>
+            <div id="category-order-list" class="flex flex-wrap gap-3"></div>
         </div>
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -55,7 +61,8 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                            <th class="p-4 pl-6">Görsel</th>
+                            <th class="p-4 pl-6">Sıra</th>
+                            <th class="p-4">Görsel</th>
                             <th class="p-4">Ürün Adı</th>
                             <th class="p-4">Kategori</th>
                             <th class="p-4">Fiyat</th>
@@ -122,6 +129,7 @@
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
 
         let categoriesList = [];
+        let allProductsRaw = [];
 
         window.addEventListener('DOMContentLoaded', () => {
             const savedPassword = localStorage.getItem('babywaffle_admin_pass');
@@ -145,18 +153,14 @@
                     errorText.classList.add('hidden');
                     document.getElementById('login-screen').classList.add('hidden');
                     document.getElementById('panel-screen').classList.remove('hidden');
-                    
                     if (rememberMe) localStorage.setItem('babywaffle_admin_pass', inputPassword);
                     else localStorage.removeItem('babywaffle_admin_pass');
-
                     fetchAdminMenu();
                 } else {
                     errorText.classList.remove('hidden');
                     if(isAuto) logout();
                 }
-            } catch (err) {
-                errorText.classList.remove('hidden');
-            }
+            } catch (err) { errorText.classList.remove('hidden'); }
         }
 
         async function changeAdminPassword() {
@@ -164,7 +168,6 @@
             if (!newPass) return;
             const newPassTrimmed = newPass.trim();
             if (newPassTrimmed.length < 4) return alert("Şifre en az 4 karakter olmalıdır!");
-
             try {
                 await supabaseClient.from('admin_settings').update({ value: newPassTrimmed }).eq('key', 'admin_password');
                 alert("Şifre değiştirildi! Çıkış yapılıyor.");
@@ -174,43 +177,53 @@
 
         async function fetchAdminMenu() {
             try {
-                // Ürünleri çek
-                const { data: itemsData, error: itemsError } = await supabaseClient.from('menu_items').select('*').order('id', { ascending: false });
+                const { data: itemsData, error: itemsError } = await supabaseClient
+                    .from('menu_items')
+                    .select('*')
+                    .order('category', { ascending: true })
+                    .order('sort_order', { ascending: true });
+
                 if (itemsError) throw itemsError;
+                allProductsRaw = itemsData;
 
-                const tbody = document.getElementById('admin-menu-list');
                 document.getElementById('total-count').innerText = `Toplam ${itemsData.length} adet kayıtlı ürün bulunuyor.`;
-                tbody.innerHTML = '';
 
-                // Menüdeki mevcut benzersiz kategorileri bul
                 const uniqueCats = [...new Set(itemsData.map(item => item.category))];
-                
-                // Sıralama tablosundaki kayıtları çek
                 const { data: orderData } = await supabaseClient.from('category_order').select('*').order('sort_order', { ascending: true });
                 
-                // Sıralama tablosundaki sıraya göre listeyi senkronize et
                 let sortedCats = [];
                 if (orderData && orderData.length > 0) {
-                    // Önce veritabanında sırası olanları ekle
-                    orderData.forEach(o => {
-                        if (uniqueCats.includes(o.name)) sortedCats.push(o.name);
-                    });
-                    // Veritabanında henüz sırası olmayan yeni kategorileri de sona ekle
-                    uniqueCats.forEach(c => {
-                        if (!sortedCats.includes(c)) sortedCats.push(c);
-                    });
-                } else {
-                    sortedCats = uniqueCats;
-                }
+                    orderData.forEach(o => { if (uniqueCats.includes(o.name)) sortedCats.push(o.name); });
+                    uniqueCats.forEach(c => { if (!sortedCats.includes(c)) sortedCats.push(c); });
+                } else { sortedCats = uniqueCats; }
 
                 categoriesList = sortedCats;
                 updateCategorySelects();
                 renderCategoryOrderUI();
+                renderProductsTableUI();
+            } catch (err) { alert("Veriler yüklenirken hata oldu."); }
+        }
 
-                itemsData.forEach(item => {
+        // ARAYÜZDE TABLOYU ÇİZER (Sayfa yenilemeden sıralama değişimi için ayrıştırıldı)
+        function renderProductsTableUI() {
+            const tbody = document.getElementById('admin-menu-list');
+            tbody.innerHTML = '';
+
+            categoriesList.forEach(cat => {
+                const catItems = allProductsRaw.filter(item => item.category === cat);
+                catItems.forEach((item, innerIndex) => {
                     tbody.innerHTML += `
                         <tr class="hover:bg-gray-50/50 transition">
-                            <td class="p-4 pl-6"><img src="${item.img}" class="w-12 h-12 rounded-lg object-cover bg-gray-100" onerror="this.src='https://placehold.co/50x50?text=Yok'"></td>
+                            <td class="p-4 pl-6 font-bold text-gray-400 text-sm">
+                                <div class="flex items-center gap-1">
+                                    <span>${innerIndex + 1}</span>
+                                    <div class="flex flex-col text-[9px] ml-2">
+                                        <button onclick="moveProductItem(${item.id}, ${innerIndex}, -1, '${cat}')" class="hover:text-black">▲</button>
+                                        <button onclick="moveProductItem(${item.id}, ${innerIndex}, 1, '${cat}')" class="hover:text-black">▼</button>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-4"><img src="${item.img}" class="w-12 h-12 rounded-lg object-cover bg-gray-100" onerror="this.src='https://placehold.co/50x50?text=Yok'"></td>
                             <td class="p-4 font-semibold text-gray-800">${item.name}</td>
                             <td class="p-4"><span class="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md text-xs font-medium">${item.category}</span></td>
                             <td class="p-4 font-bold text-gray-900">${item.price} ₺</td>
@@ -220,8 +233,74 @@
                             </td>
                         </tr>`;
                 });
+            });
+        }
+
+        async function moveProductItem(id, currentIndex, direction, categoryName) {
+            const catItems = allProductsRaw.filter(item => item.category === categoryName);
+            const targetIndex = currentIndex + direction;
+            if (targetIndex < 0 || targetIndex >= catItems.length) return;
+
+            const currentObj = catItems[currentIndex];
+            const targetObj = catItems[targetIndex];
+
+            try {
+                await supabaseClient.from('menu_items').update({ sort_order: targetIndex + 1 }).eq('id', currentObj.id);
+                await supabaseClient.from('menu_items').update({ sort_order: currentIndex + 1 }).eq('id', targetObj.id);
+                
+                // Arka planda veriyi yenile ve sadece tabloyu tekrar çiz (Sayfa Yenilenmez)
+                const tempIndex = allProductsRaw.findIndex(p => p.id === currentObj.id);
+                const tempTargetIndex = allProductsRaw.findIndex(p => p.id === targetObj.id);
+                allProductsRaw[tempIndex].sort_order = targetIndex + 1;
+                allProductsRaw[tempTargetIndex].sort_order = currentIndex + 1;
+                
+                allProductsRaw.sort((a, b) => a.sort_order - b.sort_order);
+                renderProductsTableUI();
+            } catch (err) { console.error(err); }
+        }
+
+        function renderCategoryOrderUI() {
+            const container = document.getElementById('category-order-list');
+            container.innerHTML = '';
+            categoriesList.forEach((cat, index) => {
+                container.innerHTML += `
+                    <div class="flex items-center bg-gray-100 border border-gray-200 pl-4 pr-2 py-1.5 rounded-xl gap-2 shadow-sm">
+                        <span class="text-sm font-bold text-gray-700">${index + 1}. ${cat}</span>
+                        <div class="flex gap-1">
+                            <button onclick="moveCategoryUI(${index}, -1)" class="bg-white hover:bg-black hover:text-white border border-gray-300 text-xs font-bold w-7 h-7 rounded-lg flex items-center justify-center transition">◀</button>
+                            <button onclick="moveCategoryUI(${index}, 1)" class="bg-white hover:bg-black hover:text-white border border-gray-300 text-xs font-bold w-7 h-7 rounded-lg flex items-center justify-center transition">▶</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        // DEĞİŞİKLİK: Sadece arayüzde yer değiştirir, hemen veritabanına yazmaz (Hızlı ve Akıcı)
+        function moveCategoryUI(index, direction) {
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= categoriesList.length) return;
+            const temp = categoriesList[index];
+            categoriesList[index] = categoriesList[targetIndex];
+            categoriesList[targetIndex] = temp;
+            
+            renderCategoryOrderUI();
+            renderProductsTableUI(); // Alttaki tabloyu da anlık sıralamaya göre yenile
+        }
+
+        // YENİ BUTON: Kategorilerin son sırasını toplu olarak Supabase'e kaydeder
+        async function saveCategoryOrderToSupabase() {
+            const btn = document.getElementById('save-order-btn');
+            btn.disabled = true;
+            btn.innerText = "⏳ Kaydediliyor...";
+            try {
+                for (let i = 0; i < categoriesList.length; i++) {
+                    await supabaseClient.from('category_order').upsert({ name: categoriesList[i], sort_order: i }, { onConflict: 'name' });
+                }
+                alert("🎉 Kategori sıralaması başarıyla kaydedildi ve QR Menüye yansıtıldı!");
             } catch (err) {
-                alert("Veriler yüklenirken hata oldu.");
+                alert("Hata oluştu: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "💾 Sıralamayı Kaydet";
             }
         }
 
@@ -229,47 +308,6 @@
             const select = document.getElementById('p-category');
             select.innerHTML = '';
             categoriesList.forEach(cat => { select.innerHTML += `<option value="${cat}">${cat}</option>`; });
-        }
-
-        // SIRALAMA ARA YÜZÜNÜ ÇİZER
-        function renderCategoryOrderUI() {
-            const container = document.getElementById('category-order-list');
-            container.innerHTML = '';
-            
-            categoriesList.forEach((cat, index) => {
-                container.innerHTML += `
-                    <div class="flex items-center bg-gray-100 border border-gray-200 pl-4 pr-2 py-1.5 rounded-xl gap-2 shadow-sm">
-                        <span class="text-sm font-bold text-gray-700">${index + 1}. ${cat}</span>
-                        <div class="flex gap-1">
-                            <button onclick="moveCategory(${index}, -1)" class="bg-white hover:bg-black hover:text-white border border-gray-300 text-xs font-bold w-7 h-7 rounded-lg flex items-center justify-center transition">◀</button>
-                            <button onclick="moveCategory(${index}, 1)" class="bg-white hover:bg-black hover:text-white border border-gray-300 text-xs font-bold w-7 h-7 rounded-lg flex items-center justify-center transition">▶</button>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        // KATEGORİYİ SAĞA VEYA SOLA TAŞIR VE SUPABASE'E KAYDEDER
-        async function moveCategory(index, direction) {
-            const targetIndex = index + direction;
-            if (targetIndex < 0 || targetIndex >= categoriesList.length) return; // Sınır dışı
-
-            // Dizi içinde elemanların yerini değiştir
-            const temp = categoriesList[index];
-            categoriesList[index] = categoriesList[targetIndex];
-            categoriesList[targetIndex] = temp;
-
-            renderCategoryOrderUI();
-
-            // Sıralamayı Supabase'e kaydet
-            try {
-                for (let i = 0; i < categoriesList.length; i++) {
-                    await supabaseClient
-                        .from('category_order')
-                        .upsert({ name: categoriesList[i], sort_order: i }, { onConflict: 'name' });
-                }
-            } catch (err) {
-                console.error("Sıralama kaydedilemedi:", err);
-            }
         }
 
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -308,9 +346,10 @@
                 const { data: urlData } = supabaseClient.storage.from('menu-images').getPublicUrl(fileName);
                 const ingredients = ingredientsInput ? ingredientsInput.split(',').map(i => i.trim()) : [];
 
-                await supabaseClient.from('menu_items').insert([{ name, category, price, img: urlData.publicUrl, ingredients }]);
-                
-                // Kategorinin sırasını veritabanına da peşinen ekle
+                const catItems = allProductsRaw.filter(item => item.category === category);
+                const nextOrder = catItems.length + 1;
+
+                await supabaseClient.from('menu_items').insert([{ name, category, price, img: urlData.publicUrl, ingredients, sort_order: nextOrder }]);
                 await supabaseClient.from('category_order').upsert({ name: category, sort_order: categoriesList.indexOf(category) }, { onConflict: 'name' });
 
                 alert("Ürün eklendi!");
@@ -328,7 +367,10 @@
             if (isNaN(parsed)) return;
             try {
                 await supabaseClient.from('menu_items').update({ price: parsed }).eq('id', id);
-                fetchAdminMenu();
+                // Canlı dizide güncelle ve tabloyu yenile (Yenilemesiz)
+                const idx = allProductsRaw.findIndex(p => p.id === id);
+                if(idx !== -1) allProductsRaw[idx].price = parsed;
+                renderProductsTableUI();
             } catch (err) { alert("Hata oluştu."); }
         }
 
@@ -336,7 +378,9 @@
             if(!confirm(`"${name}" silinsin mi?`)) return;
             try {
                 await supabaseClient.from('menu_items').delete().eq('id', id);
-                fetchAdminMenu();
+                // Canlı diziden kaldır ve tabloyu yenile (Yenilemesiz)
+                allProductsRaw = allProductsRaw.filter(p => p.id !== id);
+                renderProductsTableUI();
             } catch (err) { alert("Hata oluştu."); }
         }
 
