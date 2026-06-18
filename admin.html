@@ -48,8 +48,8 @@
         <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                 <div>
-                    <h2 class="text-lg font-bold text-gray-800">↔️ Kategori Sıralaması (Menüde Soldan Sağa Dizilim)</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">Kategorileri butonlarla dizin ve ardından mutlaka "Sıralamayı Kaydet" butonuna basın.</p>
+                    <h2 class="text-lg font-bold text-gray-800">↔️ Kategori Yönetimi (Sıralama ve Düzenleme)</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">Kategorileri yön butonlarıyla dizip ismini/emojisini kalem butonuyla düzenleyebilirsiniz. İşlem bitince sıralamayı kaydetmeyi unutmayın.</p>
                 </div>
                 <button id="save-order-btn" onclick="saveCategoryOrderToSupabase()" class="w-full md:w-auto bg-green-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-green-700 transition shadow-md flex items-center justify-center gap-2">
                     <span>💾 Sıralamayı Kaydet</span>
@@ -82,12 +82,30 @@
             <h3 class="text-xl font-bold text-gray-900 mb-4">Yeni Kategori Oluştur</h3>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Kategori Adı</label>
-                    <input type="text" id="new-cat-name" placeholder="Örn: ÇİKOLATALI WAFFLE" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-black">
+                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Kategori Adı (Emoji Ekleyebilirsiniz)</label>
+                    <input type="text" id="new-cat-name" placeholder="Örn: 🍫 ÇİKOLATALI WAFFLE" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-black">
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button onclick="closeModal('category-modal')" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">İptal</button>
                     <button onclick="saveCategory()" class="bg-black text-white text-sm font-bold px-5 py-2 rounded-xl hover:bg-gray-800">Kategoriyi Ekle</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-category-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">✏️ Kategoriyi Düzenle</h3>
+            <input type="hidden" id="edit-cat-old-name">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Kategori Adı ve Emoji</label>
+                    <input type="text" id="edit-cat-new-name" placeholder="Örn: 🧇 WAFFLE GRUBU" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-black">
+                    <p class="text-[11px] text-gray-400 mt-1">İsim değiştiğinde bu kategoriye bağlı ürünleriniz otomatik olarak yeni isme taşınır, silinmez.</p>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button onclick="closeModal('edit-category-modal')" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">İptal</button>
+                    <button onclick="updateCategoryNameInSupabase()" class="bg-black text-white text-sm font-bold px-5 py-2 rounded-xl hover:bg-gray-800">Değişiklikleri Kaydet</button>
                 </div>
             </div>
         </div>
@@ -326,11 +344,53 @@
                     <div class="flex items-center bg-gray-100 border border-gray-200 pl-4 pr-2 py-1.5 rounded-xl gap-2 shadow-sm">
                         <span class="text-sm font-bold text-gray-700">${index + 1}. ${cat}</span>
                         <div class="flex gap-1">
+                            <button onclick="openEditCategoryModal('${cat}')" class="bg-white hover:bg-amber-500 hover:text-white border border-gray-300 text-xs font-bold w-7 h-7 rounded-lg flex items-center justify-center transition" title="Kategoriyi Düzenle">✏️</button>
                             <button onclick="moveCategoryUI(${index}, -1)" class="bg-white hover:bg-black hover:text-white border border-gray-300 text-xs font-bold w-7 h-7 rounded-lg flex items-center justify-center transition">◀</button>
                             <button onclick="moveCategoryUI(${index}, 1)" class="bg-white hover:bg-black hover:text-white border border-gray-300 text-xs font-bold w-7 h-7 rounded-lg flex items-center justify-center transition">▶</button>
                         </div>
                     </div>`;
             });
+        }
+
+        // KATEGORİ DÜZENLEME PENCERESİNİ AÇMA (YENİ)
+        function openEditCategoryModal(categoryName) {
+            document.getElementById('edit-cat-old-name').value = categoryName;
+            document.getElementById('edit-cat-new-name').value = categoryName;
+            openModal('edit-category-modal');
+        }
+
+        // SUPABASE ÜZERİNDE GÜVENLİ KATEGORİ ADI DEĞİŞTİRME MOTORU (YENİ)
+        async function updateCategoryNameInSupabase() {
+            const oldName = document.getElementById('edit-cat-old-name').value;
+            const newName = document.getElementById('edit-cat-new-name').value.trim();
+
+            if(!newName) return showToast("Kategori adı boş bırakılamaz!", "error");
+            if(oldName === newName) { closeModal('edit-category-modal'); return; }
+
+            try {
+                // 1. Veritabanındaki bu kategoriye bağlı tüm ürünlerin kategori sütununu güvenle güncelle (Ürünler silinmez!)
+                const { error: updateError } = await supabaseClient
+                    .from('menu_items')
+                    .update({ category: newName })
+                    .eq('category', oldName);
+
+                if (updateError) throw updateError;
+
+                // 2. Lokal sıralama listesindeki eski ismi yenisiyle değiştir
+                const catIndex = categoriesList.indexOf(oldName);
+                if (catIndex !== -1) {
+                    categoriesList[catIndex] = newName;
+                }
+                
+                // 3. Tarayıcı hafızasını güncelle ve arayüzü yenile
+                localStorage.setItem('babywaffle_cat_order', JSON.stringify(categoriesList));
+                
+                closeModal('edit-category-modal');
+                showToast("Kategori adı ve bağlı tüm ürünler başarıyla güncellendi.");
+                fetchAdminMenu();
+            } catch (err) {
+                showToast("Kategori güncellenirken hata oluştu: " + err.message, "error");
+            }
         }
 
         function moveCategoryUI(index, direction) {
@@ -356,7 +416,6 @@
             categoriesList.forEach(cat => { select.innerHTML += `<option value="${cat}">${cat}</option>`; });
         }
 
-        // Hata Düzeltme: modal açma-kapama fonksiyonları
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
@@ -390,7 +449,7 @@
         }
 
         function saveCategory() {
-            const name = document.getElementById('new-cat-name').value.trim().toUpperCase();
+            const name = document.getElementById('new-cat-name').value.trim();
             if(!name) return showToast("Kategori adı boş olamaz!", "error");
             if(categoriesList.includes(name)) return showToast("Bu kategori zaten mevcut!", "error");
             categoriesList.push(name);
