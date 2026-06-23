@@ -80,6 +80,7 @@
                     <h2 class="text-3xl font-serif font-bold text-dark leading-tight" id="modal-title">Ürün Adı</h2>
                     <p class="text-2xl font-bold text-gold mt-2" id="modal-display-price">0 ₺</p>
                 </div>
+                
                 <div id="size-options-wrapper" class="hidden mb-8">
                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Porsiyon Seçimi</h3>
                     <div class="grid grid-cols-2 gap-3">
@@ -91,14 +92,15 @@
                             </div>
                         </label>
                         <label class="cursor-pointer relative">
-                            <input type="radio" name="size" value="30" class="size-radio hidden" onchange="updatePrice(30)">
+                            <input type="radio" name="size" id="large-size-radio" value="0" class="size-radio hidden" onchange="updatePrice(this.value)">
                             <div class="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-xl bg-gray-50 transition-all h-full">
                                 <span class="font-bold text-sm">Büyük Boy</span>
-                                <span class="text-xs opacity-70 mt-1">+30 ₺</span>
+                                <span class="text-xs opacity-70 mt-1" id="large-price-badge">+0 ₺</span>
                             </div>
                         </label>
                     </div>
                 </div>
+
                 <div id="ingredients-wrapper" class="hidden mb-6">
                     <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">İçindekiler</h3>
                     <div id="modal-ingredients" class="space-y-2"></div>
@@ -110,10 +112,7 @@
     <script>
         const SUPABASE_URL = 'https://zgdmnhjlxizkyecdfmuv.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnZG1uaGpseGl6a3llY2RmbXV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjUyMzcsImV4cCI6MjA5NzMwMTIzN30.L-KV8VKywt9fOF5jLDQFYOCX2kCEDrtXHRZFEBk2ARk';
-        
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-            auth: { persistSession: false }
-        });
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
 
         let currentBasePrice = 0;
         let MENU = {};
@@ -124,7 +123,6 @@
 
         async function fetchMenuFromSupabase() {
             try {
-                // Ürünleri kendi içlerindeki sort_order değerine göre küçükten büyüğe sıralı çekiyoruz
                 const { data: itemsData, error: itemsError } = await supabaseClient
                     .from('menu_items')
                     .select('*')
@@ -136,22 +134,13 @@
                     return;
                 }
 
-                // Kategorileri panel sıralamasına göre çekiyoruz
-                const { data: orderData } = await supabaseClient
-                    .from('category_order')
-                    .select('*')
-                    .order('sort_order', { ascending: true });
-
                 const uniqueCats = [...new Set(itemsData.map(item => item.category))];
-
+                const savedOrder = localStorage.getItem('babywaffle_cat_order');
                 let sortedCategories = [];
-                if (orderData && orderData.length > 0) {
-                    orderData.forEach(o => {
-                        if (uniqueCats.includes(o.name)) sortedCategories.push(o.name);
-                    });
-                    uniqueCats.forEach(c => {
-                        if (!sortedCategories.includes(c)) sortedCategories.push(c);
-                    });
+                if (savedOrder) {
+                    const orderArray = JSON.parse(savedOrder);
+                    orderArray.forEach(catName => { if (uniqueCats.includes(catName)) sortedCategories.push(catName); });
+                    uniqueCats.forEach(c => { if (!sortedCategories.includes(c)) sortedCategories.push(c); });
                 } else {
                     sortedCategories = uniqueCats;
                 }
@@ -171,11 +160,9 @@
 
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('menu-content').classList.remove('hidden');
-                
                 renderMenu();
             } catch (err) {
-                console.error("Hata ayrıntısı:", err);
-                document.getElementById('loading').innerHTML = `<p class="text-red-500 text-sm">Bağlantı hatası. Lütfen sayfayı yenileyin.</p>`;
+                document.getElementById('loading').innerHTML = `<p class="text-red-500 text-sm">Bağlantı hatası.</p>`;
             }
         }
 
@@ -194,14 +181,23 @@
                 let itemsHtml = '';
                 items.forEach((item, i) => {
                     const delay = i * 20;
-                    const itemData = encodeURIComponent(JSON.stringify(item));
+                    
+                    // Gösterim filtresi (Admin gizli büyük boy etiketini temiz içindekiler listesinden gizler)
+                    let cleanIngredients = [];
+                    if (item.ingredients) {
+                        cleanIngredients = item.ingredients.filter(ing => !ing.startsWith('_has_large:'));
+                    }
+
+                    const displayItem = { ...item, ingredients: cleanIngredients, raw_ingredients: item.ingredients };
+                    const itemData = encodeURIComponent(JSON.stringify(displayItem));
+                    
                     itemsHtml += `
-                        <div onclick="openProductModal('${itemData}', '${cat.replace(/'/g, "\\'")}')" class="item-card flex gap-5 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 animate-fade-up cursor-pointer transition-transform" style="animation-delay: ${delay}ms">
+                        <div onclick="openProductModal('${itemData}')" class="item-card flex gap-5 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 animate-fade-up cursor-pointer transition-transform" style="animation-delay: ${delay}ms">
                             <img src="${item.img}" class="w-24 h-24 rounded-xl object-cover bg-gray-100 flex-shrink-0 item-image" onerror="this.src='https://placehold.co/100x100?text=BabyWaffle'">
                             <div class="flex flex-col justify-between flex-1 py-1">
                                 <div>
                                     <h3 class="font-serif text-lg font-bold leading-tight text-dark">${item.name}</h3>
-                                    <p class="text-xs text-gray-400 mt-1 line-clamp-1">${item.ingredients ? item.ingredients.join(', ') : ''}</p>
+                                    <p class="text-xs text-gray-400 mt-1 line-clamp-1">${cleanIngredients.join(', ')}</p>
                                 </div>
                                 <div class="flex justify-between items-end mt-2">
                                     <span class="font-sans font-bold text-lg text-dark">${item.price} ₺</span>
@@ -217,7 +213,7 @@
             if(document.querySelector('#category-nav button')) document.querySelector('#category-nav button').click();
         }
 
-        function openProductModal(itemData, categoryName) {
+        function openProductModal(itemData) {
             const item = JSON.parse(decodeURIComponent(itemData));
             currentBasePrice = item.price;
             
@@ -227,12 +223,22 @@
             
             const sizeWrapper = document.getElementById('size-options-wrapper');
             const radios = document.getElementsByName('size');
-            
             radios[0].checked = true;
             updatePrice(0); 
 
-            if (categoryName.includes('WAFFLE') && !categoryName.includes('CUP')) {
+            // DİNAMİK PORSİYON DENETİMİ: Admin bu ürüne porsiyon eklemiş mi?
+            let largeDiff = 0;
+            if (item.raw_ingredients) {
+                const largeFind = item.raw_ingredients.find(i => i.startsWith('_has_large:'));
+                if (largeFind) {
+                    largeDiff = parseInt(largeFind.split(':')[1]);
+                }
+            }
+
+            if (largeDiff > 0) {
                 sizeWrapper.classList.remove('hidden');
+                document.getElementById('large-size-radio').value = largeDiff;
+                document.getElementById('large-price-badge').innerText = `+${largeDiff} ₺`;
             } else {
                 sizeWrapper.classList.add('hidden');
             }
