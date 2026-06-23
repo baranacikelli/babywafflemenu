@@ -49,7 +49,7 @@
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                 <div>
                     <h2 class="text-lg font-bold text-gray-800">↔️ Kategori Yönetimi (Sıralama ve Düzenleme)</h2>
-                    <p class="text-xs text-gray-400 mt-0.5">Kategorileri yön butonlarıyla dizip ismini/emojisini kalem butonuyla düzenleyebilirsiniz. İşlem bitince sıralamayı kaydetmeyi unutmayın.</p>
+                    <p class="text-xs text-gray-400 mt-0.5">Kategorileri yön butonlarıyla dizin ve ardından mutlaka "Sıralamayı Kaydet" butonuna basın.</p>
                 </div>
                 <button id="save-order-btn" onclick="saveCategoryOrderToSupabase()" class="w-full md:w-auto bg-green-600 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-green-700 transition shadow-md flex items-center justify-center gap-2">
                     <span>💾 Sıralamayı Kaydet</span>
@@ -68,6 +68,7 @@
                             <th class="p-4">Ürün Adı</th>
                             <th class="p-4">Kategori</th>
                             <th class="p-4">Fiyat</th>
+                            <th class="p-4">Seçenekler</th>
                             <th class="p-4 pr-6 text-right">İşlemler</th>
                         </tr>
                     </thead>
@@ -100,8 +101,7 @@
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Kategori Adı ve Emoji</label>
-                    <input type="text" id="edit-cat-new-name" placeholder="Örn: 🧇 WAFFLE GRUBU" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-black">
-                    <p class="text-[11px] text-gray-400 mt-1">İsim değiştiğinde bu kategoriye bağlı ürünleriniz otomatik olarak yeni isme taşınır, silinmez.</p>
+                    <input type="text" id="edit-cat-new-name" placeholder="Örn: 1. 🧇 WAFFLE GRUBU" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-black">
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button onclick="closeModal('edit-category-modal')" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">İptal</button>
@@ -132,6 +132,18 @@
                     <label class="block text-xs font-bold text-gray-400 uppercase mb-2">İçindekiler (Virgülle ayırın)</label>
                     <input type="text" id="p-ingredients" placeholder="Örn: Çilek, Muz, Sütlü Çikolata" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-black">
                 </div>
+                
+                <div class="p-4 bg-gray-50 border border-gray-150 rounded-2xl space-y-3">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="p-has-large" onchange="toggleLargePriceInput()" class="w-4 h-4 text-black border-gray-300 rounded focus:ring-black cursor-pointer">
+                        <label for="p-has-large" class="ml-2 text-xs font-bold text-gray-700 select-none cursor-pointer">Büyük Boy Seçeneği Ekle</label>
+                    </div>
+                    <div id="large-price-wrapper" class="hidden animate-fade-up">
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Büyük Boy Fiyat Farkı (+ TL) *</label>
+                        <input type="number" id="p-large-price" placeholder="Örn: 30" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-black bg-white">
+                    </div>
+                </div>
+
                 <div>
                     <label id="p-file-label" class="block text-xs font-bold text-gray-400 uppercase mb-2">Ürün Görseli *</label>
                     <input type="file" id="p-file" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-black hover:file:bg-gray-200 cursor-pointer">
@@ -283,6 +295,13 @@
             } catch (err) { showToast("Veriler yüklenirken hata oldu.", "error"); }
         }
 
+        function toggleLargePriceInput() {
+            const checkbox = document.getElementById('p-has-large');
+            const wrapper = document.getElementById('large-price-wrapper');
+            if(checkbox.checked) wrapper.classList.remove('hidden');
+            else wrapper.classList.add('hidden');
+        }
+
         function renderProductsTableUI() {
             const tbody = document.getElementById('admin-menu-list');
             tbody.innerHTML = '';
@@ -290,6 +309,16 @@
             categoriesList.forEach(cat => {
                 const catItems = allProductsRaw.filter(item => item.category === cat);
                 catItems.forEach((item, innerIndex) => {
+                    // Gizli büyük boy bilgisini ayıklama filtresi
+                    let hasLargeText = '<span class="text-gray-400 text-xs">-</span>';
+                    if (item.ingredients) {
+                        const largeFind = item.ingredients.find(i => i.startsWith('_has_large:'));
+                        if (largeFind) {
+                            const val = largeFind.split(':')[1];
+                            hasLargeText = `<span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md text-xs font-bold">Büyük Boy (+${val} ₺)</span>`;
+                        }
+                    }
+
                     tbody.innerHTML += `
                         <tr class="hover:bg-gray-50/50 transition">
                             <td class="p-4 pl-6 font-bold text-gray-400 text-sm">
@@ -305,6 +334,7 @@
                             <td class="p-4 font-semibold text-gray-800">${item.name}</td>
                             <td class="p-4"><span class="bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md text-xs font-medium">${item.category}</span></td>
                             <td class="p-4 font-bold text-gray-900">${item.price} ₺</td>
+                            <td class="p-4 font-medium">${hasLargeText}</td>
                             <td class="p-4 pr-6 text-right space-x-2">
                                 <button onclick="openEditProductModal(${item.id})" class="text-xs font-bold text-gray-700 border border-gray-200 bg-white hover:bg-black hover:text-white px-3 py-1.5 rounded-lg transition">Düzenle</button>
                                 <button onclick="openDeleteModal(${item.id}, '${item.name}')" class="text-xs font-bold text-red-600 border border-red-100 bg-red-50 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded-lg transition">Sil</button>
@@ -352,14 +382,12 @@
             });
         }
 
-        // KATEGORİ DÜZENLEME PENCERESİNİ AÇMA (YENİ)
         function openEditCategoryModal(categoryName) {
             document.getElementById('edit-cat-old-name').value = categoryName;
             document.getElementById('edit-cat-new-name').value = categoryName;
             openModal('edit-category-modal');
         }
 
-        // SUPABASE ÜZERİNDE GÜVENLİ KATEGORİ ADI DEĞİŞTİRME MOTORU (YENİ)
         async function updateCategoryNameInSupabase() {
             const oldName = document.getElementById('edit-cat-old-name').value;
             const newName = document.getElementById('edit-cat-new-name').value.trim();
@@ -368,7 +396,6 @@
             if(oldName === newName) { closeModal('edit-category-modal'); return; }
 
             try {
-                // 1. Veritabanındaki bu kategoriye bağlı tüm ürünlerin kategori sütununu güvenle güncelle (Ürünler silinmez!)
                 const { error: updateError } = await supabaseClient
                     .from('menu_items')
                     .update({ category: newName })
@@ -376,21 +403,14 @@
 
                 if (updateError) throw updateError;
 
-                // 2. Lokal sıralama listesindeki eski ismi yenisiyle değiştir
                 const catIndex = categoriesList.indexOf(oldName);
-                if (catIndex !== -1) {
-                    categoriesList[catIndex] = newName;
-                }
+                if (catIndex !== -1) categoriesList[catIndex] = newName;
                 
-                // 3. Tarayıcı hafızasını güncelle ve arayüzü yenile
                 localStorage.setItem('babywaffle_cat_order', JSON.stringify(categoriesList));
-                
                 closeModal('edit-category-modal');
-                showToast("Kategori adı ve bağlı tüm ürünler başarıyla güncellendi.");
+                showToast("Kategori güncellendi.");
                 fetchAdminMenu();
-            } catch (err) {
-                showToast("Kategori güncellenirken hata oluştu: " + err.message, "error");
-            }
+            } catch (err) { showToast("Hata oldu.", "error"); }
         }
 
         function moveCategoryUI(index, direction) {
@@ -399,7 +419,6 @@
             const temp = categoriesList[index];
             categoriesList[index] = categoriesList[targetIndex];
             categoriesList[targetIndex] = temp;
-            
             renderCategoryOrderUI();
             renderProductsTableUI();
         }
@@ -426,8 +445,11 @@
             document.getElementById('p-price').value = "";
             document.getElementById('p-ingredients').value = "";
             document.getElementById('p-file').value = "";
+            document.getElementById('p-has-large').checked = false;
+            document.getElementById('p-large-price').value = "";
             document.getElementById('p-file-label').innerText = "Ürün Görseli *";
             document.getElementById('p-file-help').classList.add('hidden');
+            toggleLargePriceInput();
             openModal('product-modal');
         }
 
@@ -440,11 +462,28 @@
             document.getElementById('p-name').value = product.name;
             document.getElementById('p-category').value = product.category;
             document.getElementById('p-price').value = product.price;
-            document.getElementById('p-ingredients').value = product.ingredients ? product.ingredients.join(', ') : '';
             document.getElementById('p-file').value = "";
             document.getElementById('p-file-label').innerText = "Yeni Görsel Seç (İsteğe Bağlı)";
             document.getElementById('p-file-help').classList.remove('hidden');
             
+            // Büyük boy bilgisi ve içindekiler ayrıştırma filtresi
+            let displayIngredients = [];
+            document.getElementById('p-has-large').checked = false;
+            document.getElementById('p-large-price').value = "";
+
+            if (product.ingredients) {
+                product.ingredients.forEach(ing => {
+                    if (ing.startsWith('_has_large:')) {
+                        document.getElementById('p-has-large').checked = true;
+                        document.getElementById('p-large-price').value = ing.split(':')[1];
+                    } else {
+                        displayIngredients.push(ing);
+                    }
+                });
+            }
+
+            document.getElementById('p-ingredients').value = displayIngredients.join(', ');
+            toggleLargePriceInput();
             openModal('product-modal');
         }
 
@@ -468,9 +507,12 @@
             const price = parseInt(document.getElementById('p-price').value);
             const ingredientsInput = document.getElementById('p-ingredients').value;
             const fileInput = document.getElementById('p-file');
+            const hasLarge = document.getElementById('p-has-large').checked;
+            const largePrice = document.getElementById('p-large-price').value;
 
             if(!name || !category || isNaN(price)) return showToast("Lütfen zorunlu alanları doldurun!", "error");
             if(!pId && fileInput.files.length === 0) return showToast("Yeni ürün için görsel seçmelisiniz!", "error");
+            if(hasLarge && (!largePrice || isNaN(parseInt(largePrice)))) return showToast("Büyük boy fiyat farkını giriniz!", "error");
 
             const btn = document.getElementById('submit-product-btn');
             btn.disabled = true; btn.innerText = "İşlem Yapılıyor...";
@@ -487,14 +529,15 @@
                         .from('menu-images')
                         .upload(fileName, file, { cacheControl: '3600', upsert: true });
 
-                    if (uploadError) {
-                        throw new Error("Görsel Yükleme Hatası: " + uploadError.message);
-                    }
-
+                    if (uploadError) throw new Error("Görsel Yükleme Hatası: " + uploadError.message);
                     finalPublicUrl = `${SUPABASE_URL}/storage/v1/object/public/menu-images/${fileName}`;
                 }
 
-                const ingredients = ingredientsInput ? ingredientsInput.split(',').map(i => i.trim()).filter(i => i !== "") : [];
+                // İçindekiler listesini oluşturma ve Büyük boy etiketini paketleme
+                let ingredients = ingredientsInput ? ingredientsInput.split(',').map(i => i.trim()).filter(i => i !== "") : [];
+                if (hasLarge) {
+                    ingredients.push(`_has_large:${parseInt(largePrice)}`);
+                }
 
                 if(pId) {
                     const updatePayload = { name, category, price, ingredients };
